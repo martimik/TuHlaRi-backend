@@ -101,11 +101,11 @@ app.get('/pagecount', function (req, res) {
     initDb(function(err){});
   }
   if (db) {
-    db.collection('counts').count(function(err, count ){
-      res.send('{ pageCount: ' + count + '}');
+    db.collection('counts').find().toArray((err, result) => {
+      res.send(result);
     });
   } else {
-    res.send(db.counts.find());
+    res.send("asd");
   }
 });
 
