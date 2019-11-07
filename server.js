@@ -101,11 +101,26 @@ app.get('/pagecount', function (req, res) {
     initDb(function(err){});
   }
   if (db) {
+    db.collection('counts').count(function(err, count ){
+      res.send('{ pageCount: ' + count + '}');
+    });
+  } else {
+    res.send(":(");
+  }
+});
+
+app.get('/events', function (req, res) {
+  // try to initialize the db on every request if it's not already
+  // initialized.
+  if (!db) {
+    initDb(function(err){});
+  }
+  if (db) {
     db.collection('counts').find().toArray((err, result) => {
       res.send(result);
     });
   } else {
-    res.send("asd");
+    res.send(":(");
   }
 });
 
