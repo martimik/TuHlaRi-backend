@@ -1,3 +1,4 @@
+/*
 var server   = require('../server'),
     chai     = require('chai'),
     chaiHTTP = require('chai-http'),
@@ -29,3 +30,4 @@ describe('Basic routes tests', function() {
 
     })
 })
+*/
