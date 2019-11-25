@@ -46,10 +46,27 @@ mongodb.connect(mongoUrl, (err, database) => {
     console.log("Connected to MongoDB at: %s", mongoUrl);
 });
 
-app.use(session({ secret: 'keyboard cat', cookie: { maxAge: 60000, }}))
+app.use(session({ 
+    name: 'sessionId',
+    secret: 'keyboard cat', 
+    cookie: {
+        httpOnly: true,
+        maxAge: 60000, 
+    }
+}));
+
+var sessionChecker = (req, res, next) => {
+    if (req.session.id) {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({ error: "Already logged in."}));
+    }
+    else {
+        next();
+    }
+}
 
 app.get("/", (req, res) => {
-    res.send("Hello with sessions. :)")
+    res.send("Hello with sessions. :)");
 });
 
 app.get("/events", (req, res) => {
@@ -69,8 +86,7 @@ app.get("/event/:id", (req, res) => {
     );
 });
 
-app.get("/login/:name.:password", (req, res) => {
-    
+app.get("/login/:name.:password", sessionChecker, (req, res) => {
     
     console.log("name: " + req.params.name);
     console.log("pass: " + req.params.password);
@@ -112,6 +128,11 @@ app.get("/logout", (req, res) => {
         });
     }
 });
+
+app.use(function(err, req, res, next) {
+    console.error(err.stack);
+    res.status(500).send({ error: err });
+})
 
 app.listen(PORT, IP);
 console.log("Server running on http://%s:%s", IP, PORT);
