@@ -48,6 +48,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/events", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
     db.collection("events").insert({ ip: req.ip, date: Date.now() });
     db.collection("events")
         .find()
@@ -57,6 +58,7 @@ app.get("/events", (req, res) => {
 });
 
 app.get("/event/:id", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
     db.collection("events").findOne(ObjectId(req.params.id), (err, result) =>
         res.send(result)
     );
