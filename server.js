@@ -2,11 +2,22 @@ const express = require("express");
 const morgan = require("morgan");
 const mongodb = require("mongodb");
 const session = require("express-session");
+const bodyParser = require("body-parser");
 
 const app = express();
 const { ObjectId } = mongodb;
 
 app.use(morgan("combined"));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(session({ 
+    name: 'sessionId',
+    secret: 'keyboard cat', 
+    cookie: {
+        httpOnly: true,
+        maxAge: 60000, 
+    }
+}));
 
 const PORT = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080;
 const IP = process.env.IP || process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
@@ -46,27 +57,8 @@ mongodb.connect(mongoUrl, (err, database) => {
     console.log("Connected to MongoDB at: %s", mongoUrl);
 });
 
-app.use(session({ 
-    name: 'sessionId',
-    secret: 'keyboard cat', 
-    cookie: {
-        httpOnly: true,
-        maxAge: 60000, 
-    }
-}));
-
-var sessionChecker = (req, res, next) => {
-    if (req.session.id) {
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify({ error: "Already logged in."}));
-    }
-    else {
-        next();
-    }
-}
-
 app.get("/", (req, res) => {
-    res.send("Hello with sessions. :)");
+    res.send(JSON.stringify({ name: req.session.name, email: req.session.email, userGroup: req.session.userGroup}));
 });
 
 app.get("/events", (req, res) => {
@@ -86,19 +78,18 @@ app.get("/event/:id", (req, res) => {
     );
 });
 
-app.get("/login/:name.:password", sessionChecker, (req, res) => {
-    
-    console.log("name: " + req.params.name);
-    console.log("pass: " + req.params.password);
+app.post("/login/", (req, res) => {
 
-    db.collection("development").findOne({
-        "name": req.params.name,
-        "password": req.params.password
-    }), (err, result) => {
+    console.log("name: " + req.body.name);
+    console.log("pass: " + req.body.password);
+    
+    db.collection("development").findOne({ name: req.body.name, password: req.body.password}, function(err, result) {
+
         console.log("ok");
         console.log(result);
         console.log(err);
-        if(result != "null"){
+
+        if(result != null){
 
             req.session.id = result.id;
             req.session.name = result.name;
@@ -106,28 +97,72 @@ app.get("/login/:name.:password", sessionChecker, (req, res) => {
             req.session.userGroup = result.userGroup;
 
             res.setHeader('Content-Type', 'application/json');
-            res.send(JSON.stringify({ name: result.name, email: result.email, userGroup: result.userGroup}));
+            res.send(JSON.stringify({ name: req.session.name, email: req.session.email, userGroup: req.session.userGroup}));
         }
         else{
             res.setHeader('Content-Type', 'application/json');
             res.send(JSON.stringify({ error: "Invalid login creditentials."}));
         }
-    }
+    });
 });
 
-app.get("/logout", (req, res) => {
+app.get("/logout", (req, res, next) => {
     if (req.session) {
         req.session.destroy(function(err) {
             if(err) {
-                return next(err);
+                next(err);
             } else {
                 req.session = null;
-                console.log("logout successful");
-                return res.send("Logout");
+                res.write("Logout:");
+                res.write(JSON.stringify({ name: req.session.name, email: req.session.email, userGroup: req.session.userGroup}));
+                res.send();
             }
         });
     }
 });
+
+app.post("/newUser", function(req, res, next) {
+
+    if(req.session.userGroup != 1){
+        res.end(JSON.stringify({ error: "Need admin privileges."}));
+    } else next();
+    }, 
+    function(req, res, next){
+        if(typeof req.body.name != String || typeof req.body.email != String || typeof req.body.password != String || typeof req.body.userGroup != Int){
+            res.setHeader('Content-Type', 'application/json');
+            res.write(JSON.stringify({ error: "Invalid data :("}));
+            res.end();
+        } else next();
+    },
+    function(req, res, next){
+
+    db.collection("development").insert({
+        name: req.body.name,
+        email: req.body.email,
+        password: req.body.password,
+        userGroup: req.body.userGroup
+    }, function(err, result) {
+        if(result.nInserted == 0 || err){
+            res.setHeader('Content-Type', 'application/json');
+            res.send(JSON.stringify({ error: "Insert failed."}));
+            next(err);
+        } else {
+            res.setHeader('Content-Type', 'application/json');
+            res.write("Adding user succ :D");
+            res.write(JSON.stringify({ name: req.body.name, email: req.body.email, userGroup: req.body.userGroup}));
+            res.send();
+        }
+    });
+});
+
+var validateUserData = (req, res, next) => {
+    if(typeof req.body.name != String || typeof req.body.email != String || typeof req.body.password != String || typeof req.body.userGroup != Int){
+        res.setHeader('Content-Type', 'application/json');
+        res.write(JSON.stringify({ error: "Invalid data :("}));
+        res.end();
+    };
+};
+
 
 app.use(function(err, req, res, next) {
     console.error(err.stack);
