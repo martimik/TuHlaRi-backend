@@ -1,4 +1,5 @@
 const express = require("express");
+const fileUpload = require("express-fileupload");
 const morgan = require("morgan");
 const mongodb = require("mongodb");
 const session = require("express-session");
@@ -11,12 +12,14 @@ const sha256 = require("sha256");
 const auth = require("basic-auth");
 
 const app = express();
+
 const { ObjectId } = mongodb;
 
 app.use(morgan("combined"));
 app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(fileUpload({ createParentPath: true }));
 
 //Session cookie, duration 10min
 app.use(
@@ -87,13 +90,6 @@ app.get("/events", (req, res) => {
     });
 });
 
-app.get("/event/:id", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  db.collection("events").findOne(ObjectId(req.params.id), (err, result) =>
-    res.send(result)
-  );
-});
-
 app.post("/login", (req, res, next) => {
   const credentials = auth(req);
   const passwordHash = sha256(credentials.pass);
@@ -113,7 +109,6 @@ app.post("/login", (req, res, next) => {
     }
   );
 });
-
 app.post("/logout", (req, res, next) => {
   if (req.session) {
     req.session.destroy(function(err) {
@@ -129,6 +124,13 @@ app.post("/logout", (req, res, next) => {
     res.setHeader("Content-Type", "application/json");
     res.send(JSON.stringify({ error: "Session does not exist." }));
   }
+});
+
+app.get("/event/:id", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  db.collection("events").findOne(ObjectId(req.params.id), (err, result) =>
+    res.send(result)
+  );
 });
 
 // Adds user to bd with validation of data (change later to valid documentation lenght for password etc.)
@@ -153,18 +155,18 @@ app.post(
       .isInt()
       .escape()
   ],
-  function(req, res, next) {
+  (req, res, next) => {
     if (req.session.userGroup != "1") {
       res.end(JSON.stringify({ error: "Need admin privileges." }));
     } else next();
   },
-  function(req, res, next) {
+  (req, res, next) => {
     if (!validationResult(req).isEmpty()) {
       res.setHeader("Content-Type", "application/json");
       res.send(JSON.stringify({ error: "Invalid form data." }));
     } else next();
   },
-  function(req, res, next) {
+  (req, res, next) => {
     db.collection("development").findOne({ email: req.body.email }, function(
       err,
       result
@@ -175,7 +177,7 @@ app.post(
       } else next();
     });
   },
-  function(req, res, next) {
+  (req, res, next) => {
     let passwordHash = sha256(req.body.password);
 
     db.collection("development").insert(
@@ -185,7 +187,7 @@ app.post(
         password: passwordHash,
         userGroup: req.body.userGroup
       },
-      function(err, result) {
+      (err, result) => {
         if (result.nInserted == 0 || err) {
           res.setHeader("Content-Type", "application/json");
           res.send(JSON.stringify({ error: "Insert failed." }));
@@ -217,7 +219,7 @@ app.post(
       .isString()
       .escape()
   ],
-  function(req, res, next) {
+  (req, res, next) => {
     console.log("searchword is: " + req.body.searchWord);
 
     if (!validationResult(req).isEmpty()) {
@@ -225,11 +227,11 @@ app.post(
       res.send(JSON.stringify({ error: "Invalid form data." }));
     } else next();
   },
-  function(req, res, next) {
+  (req, res, next) => {
     //Searches db with the searchword with indexed values and makes it an array for JSON preparation
     db.collection("development")
       .find({ $text: { $search: req.body.searchWord } })
-      .toArray(function(err, result) {
+      .toArray((err, result) => {
         console.log("Hakutulos: " + JSON.stringify(result));
         if (result) {
           res.setHeader("Content-Type", "application/json");
@@ -244,11 +246,11 @@ app.post(
 );
 
 // Fetches all products with a ProductName
-app.post("/allProducts", function(req, res, next) {
+app.post("/allProducts", (req, res, next) => {
   ////Searches db for all Products with ProductNames and makes them into array for JSON preparation
   db.collection("development")
     .find({ productName: { $exists: true } })
-    .toArray(function(err, result) {
+    .toArray((err, result) => {
       if (result) {
         res.setHeader("Content-Type", "application/json");
         res.write(JSON.stringify(result));
@@ -309,19 +311,19 @@ app.route("/addProduct").post(
       .escape()
       .optional()
   ],
-  function(req, res, next) {
+  (req, res, next) => {
     if (!validationResult(req).isEmpty()) {
       res.setHeader("Content-Type", "application/json");
       res.send(JSON.stringify({ error: "Invalid form data." }));
     } else next();
   },
-  function(req, res, next) {
+  (req, res, next) => {
     if (req.session.userGroup != ("1" || "2" || "3")) {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ error: "Insufficient priviledges." }));
     } else next();
   },
-  function(req, res, next) {
+  (req, res, next) => {
     db.collection("development").insert(
       {
         productName: req.body.productName,
@@ -336,7 +338,7 @@ app.route("/addProduct").post(
         owner: req.body.owner,
         price: req.body.price
       },
-      function(err, result) {
+      (err, result) => {
         if (result.nInserted == 0 || err) {
           res.setHeader("Content-Type", "application/json");
           res.send(JSON.stringify({ error: "Insert failed." }));
@@ -357,7 +359,30 @@ app.route("/addProduct").post(
   }
 );
 
-app.use(function(err, req, res, next) {
+app.post("/upload", (req, res) => {
+  if (!req.files || Object.keys(req.files).length === 0) {
+    return res.status(400).send("No files were uploaded.");
+  }
+
+  const image = req.files.image;
+
+  // Filename is generated from current session id and datetime
+  const date = new Date();
+  // Split the string to array
+  let fileType = image.name.split(".");
+  // Last element in array is the file type
+  fileType = fileType[fileType.length - 1];
+  const fileName = req.session.id + date.getTime() + "." + fileType;
+
+  // Use the mv() method to place the file somewhere on your server
+  image.mv("./images/" + fileName, err => {
+    if (err) return res.status(500).send(err);
+
+    res.send("File uploaded!");
+  });
+});
+
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({ error: err });
 });

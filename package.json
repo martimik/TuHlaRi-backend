@@ -13,6 +13,7 @@
     "ejs": "^2.4.1",
     "express": "^4.13.4",
     "express-basic-auth": "^1.2.0",
+    "express-fileupload": "^1.1.6",
     "express-session": "^1.17.0",
     "express-validator": "^6.3.0",
     "mocha": "^2.4.5",
