@@ -20,6 +20,7 @@ app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(fileUpload({ createParentPath: true }));
+app.use(express.static(__dirname + "/images"));
 
 //Session cookie, duration 10min
 app.use(
@@ -94,7 +95,7 @@ app.post("/login", (req, res, next) => {
   const credentials = auth(req);
   const passwordHash = sha256(credentials.pass);
 
-  db.collection("development").findOne(
+  db.collection("users").findOne(
     { name: credentials.name, password: passwordHash },
     (err, result) => {
       if (result) {
@@ -126,13 +127,6 @@ app.post("/logout", (req, res, next) => {
   }
 });
 
-app.get("/event/:id", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  db.collection("events").findOne(ObjectId(req.params.id), (err, result) =>
-    res.send(result)
-  );
-});
-
 // Adds user to bd with validation of data (change later to valid documentation lenght for password etc.)
 app.post(
   "/newUser",
@@ -156,9 +150,10 @@ app.post(
       .escape()
   ],
   (req, res, next) => {
-    if (req.session.userGroup != "1") {
-      res.end(JSON.stringify({ error: "Need admin privileges." }));
-    } else next();
+    // if (req.session.userGroup !== "1") {
+    //  res.end(JSON.stringify({ error: "Need admin privileges." }));
+    //} else
+    next();
   },
   (req, res, next) => {
     if (!validationResult(req).isEmpty()) {
@@ -167,10 +162,7 @@ app.post(
     } else next();
   },
   (req, res, next) => {
-    db.collection("development").findOne({ email: req.body.email }, function(
-      err,
-      result
-    ) {
+    db.collection("users").findOne({ email: req.body.email }, (err, result) => {
       if (result != null) {
         res.setHeader("Content-Type", "application/json");
         res.send(JSON.stringify({ error: "Email already in use." }));
@@ -180,12 +172,13 @@ app.post(
   (req, res, next) => {
     let passwordHash = sha256(req.body.password);
 
-    db.collection("development").insert(
+    db.collection("users").insert(
       {
         name: req.body.name,
         email: req.body.email,
         password: passwordHash,
-        userGroup: req.body.userGroup
+        userGroup: req.body.userGroup,
+        createdAt: Date.now()
       },
       (err, result) => {
         if (result.nInserted == 0 || err) {
@@ -229,7 +222,7 @@ app.post(
   },
   (req, res, next) => {
     //Searches db with the searchword with indexed values and makes it an array for JSON preparation
-    db.collection("development")
+    db.collection("products")
       .find({ $text: { $search: req.body.searchWord } })
       .toArray((err, result) => {
         console.log("Hakutulos: " + JSON.stringify(result));
@@ -244,12 +237,41 @@ app.post(
       });
   }
 );
-
-// Fetches all products with a ProductName
-app.post("/allProducts", (req, res, next) => {
-  ////Searches db for all Products with ProductNames and makes them into array for JSON preparation
-  db.collection("development")
-    .find({ productName: { $exists: true } })
+/* 
+Get all products user is priviledged to see
+*/
+app.get("/products", (req, res, next) => {
+  db.collection("products")
+    .find(
+      {
+        productName: { $exists: true },
+        $or: [
+          { productOwner: { $eq: req.session.email } },
+          { salesPerson: { $eq: req.session.email } },
+          { creator: { $eq: req.session.email } },
+          { isClassified: { $eq: false } }
+        ]
+      },
+      {
+        // Only the following properties will be returned
+        productName: 1,
+        shortDescription: 1,
+        longDescription: 1,
+        technologies: 1,
+        components: 1,
+        enviromentRequirements: 1,
+        customers: 1,
+        productOwner: 1,
+        salesPerson: 1,
+        lifeCycleStatus: 1,
+        businessType: 1,
+        pricing: 1,
+        isIdea: 1,
+        createdAt: 1,
+        editedAt: 1,
+        creator: 1
+      }
+    )
     .toArray((err, result) => {
       if (result) {
         res.setHeader("Content-Type", "application/json");
@@ -261,6 +283,49 @@ app.post("/allProducts", (req, res, next) => {
       }
     });
 });
+
+app.post("/acceptIdea", (req, res, next) => {
+  const id = req.body.id.length === 24 ? ObjectId(req.body.id) : null;
+
+  if (!id) {
+    res.send({
+      message: "No such product or insufficient priviledges",
+      code: "AIE1"
+    });
+    return;
+  }
+
+  db.collection("products").findOne(id, (err, result) => {
+    if (err || !result) {
+      res.send({
+        message: "No such product or insufficient priviledges",
+        code: "AIE2"
+      });
+      return;
+    }
+    if (result.productOwner === req.session.email) {
+      db.collection("products").update({ _id: id }, { $set: { isIdea: true } });
+      res.send({ message: "Update success", code: "AIS" });
+    } else {
+      res.send({
+        message: "No such product or insufficient priviledges",
+        code: "AIE3"
+      });
+    }
+  });
+});
+
+app.route("/test").post(
+  [
+    body("components")
+      .isArray()
+      .optional()
+  ],
+  (req, res, next) => {
+    console.log(req.body.components);
+    res.send(req.body);
+  }
+);
 
 /* 
     Adds a product into db with the following values being required
@@ -279,79 +344,99 @@ app.route("/addProduct").post(
       .isLength({ min: 1 })
       .isString()
       .escape(),
-    body("logo")
-      .isString()
-      .escape()
-      .optional(),
     body("longDescription")
       .isString()
       .escape()
       .optional(),
-    body("technologies")
+    body("logo")
       .isString()
       .escape()
+      .optional(),
+    body("technologies")
+      .isArray()
+      .optional(),
+    body("components")
+      .isArray()
       .optional(),
     body("enviromentRequirements")
+      .isArray()
+      .optional(),
+    body("customers")
+      .isArray()
+      .optional(),
+    body("productOwner") // email
       .isString()
       .escape()
       .optional(),
-    body("customer")
+    body("salesPerson")
       .isString()
       .escape()
       .optional(),
-    body("lifeCycle")
-      .isString()
-      .escape(),
-    body("owner")
+    body("lifeCycleStatus").isInt(),
+    body("businessType")
+      .isInt()
+      .optional(),
+    body("pricing")
       .isString()
       .escape()
       .optional(),
-    body("price")
-      .isString()
-      .escape()
+    body("isClassified")
+      .isBoolean()
+      .optional(),
+    body("isIdea")
+      .isBoolean()
       .optional()
   ],
   (req, res, next) => {
+    console.log(req.session.userGroup);
     if (!validationResult(req).isEmpty()) {
       res.setHeader("Content-Type", "application/json");
-      res.send(JSON.stringify({ error: "Invalid form data." }));
-    } else next();
+      res.send({ message: "Invalid form data", code: "APE1" });
+    } else {
+      next();
+    }
   },
   (req, res, next) => {
-    if (req.session.userGroup != ("1" || "2" || "3")) {
+    if (!req.session.userGroup || req.session.userGroup >= 3) {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "Insufficient priviledges." }));
-    } else next();
+      res.send({ message: "Insufficient priviledges", code: "APE2" });
+    } else {
+      next();
+    }
   },
   (req, res, next) => {
-    db.collection("development").insert(
+    db.collection("products").insert(
       {
         productName: req.body.productName,
         shortDescription: req.body.shortDescription,
+        longDescription: req.body.longDescription,
         logo: req.body.logo,
-        longDescription: req.body.longDescription,
         technologies: req.body.technologies,
-        longDescription: req.body.longDescription,
+        components: req.body.components,
         enviromentRequirements: req.body.enviromentRequirements,
-        customer: req.body.customer,
-        lifeCycle: req.body.lifeCycle,
-        owner: req.body.owner,
-        price: req.body.price
+        customers: req.body.customers,
+        productOwner: req.body.productOwner,
+        salesPerson: req.body.salesPerson,
+        lifeCycleStatus: req.body.lifeCycleStatus,
+        businessType: req.body.businessType,
+        pricing: req.body.pricing,
+        isClassified: req.body.isClassified,
+        isIdea: req.body.isIdea,
+        createdAt: Date.now(),
+        editedAt: Date.now(),
+        creator: req.session.email
       },
       (err, result) => {
         if (result.nInserted == 0 || err) {
           res.setHeader("Content-Type", "application/json");
-          res.send(JSON.stringify({ error: "Insert failed." }));
+          res.send({ message: "Couldn't add product", code: "APE3" });
           next(err);
         } else {
           res.setHeader("Content-Type", "application/json");
-          res.write("Adding product");
-          res.write(
-            JSON.stringify({
-              name: req.body.name,
-              shortDescription: req.body.shortDescription
-            })
-          );
+          res.send({
+            message: `Successfully created product ${result.id}`,
+            code: "APS"
+          });
           res.send();
         }
       }
@@ -359,9 +444,9 @@ app.route("/addProduct").post(
   }
 );
 
-app.post("/upload", (req, res) => {
+app.post("/uploadImage", (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
-    return res.status(400).send("No files were uploaded.");
+    return res.status(400).send("No files were uploaded");
   }
 
   const image = req.files.image;
@@ -378,7 +463,7 @@ app.post("/upload", (req, res) => {
   image.mv("./images/" + fileName, err => {
     if (err) return res.status(500).send(err);
 
-    res.send("File uploaded!");
+    res.send(fileName);
   });
 });
 
