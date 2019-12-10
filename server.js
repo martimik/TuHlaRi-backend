@@ -22,14 +22,13 @@ app.use(bodyParser.json());
 app.use(fileUpload({ createParentPath: true }));
 app.use(express.static(__dirname + "/images"));
 
-//Session cookie, duration 10min
 app.use(
   session({
     name: "auth",
     secret: "keyboard cat",
     cookie: {
       httpOnly: true,
-      maxAge: 600000
+      maxAge: 1000 * 60 * 30 // 30 minutes
     }
   })
 );
@@ -73,7 +72,7 @@ mongodb.connect(mongoUrl, (err, database) => {
   console.log("Connected to MongoDB at: %s", mongoUrl);
 });
 
-app.get("/", (req, res) => {
+app.get("/session", (req, res) => {
   res.send({
     name: req.session.name,
     email: req.session.email,
@@ -103,13 +102,22 @@ app.post("/login", (req, res, next) => {
         req.session.name = result.name;
         req.session.email = result.email;
         req.session.userGroup = result.userGroup;
-        res.send(req.session);
+
+        res.send({
+          name: req.session.name,
+          email: req.session.email,
+          userGroup: req.session.userGroup
+        });
       } else {
-        res.send("Invalid credentials");
+        res.send({
+          message: "Invalid credentials",
+          code: "LIF1"
+        });
       }
     }
   );
 });
+
 app.post("/logout", (req, res, next) => {
   if (req.session) {
     req.session.destroy(function(err) {
@@ -118,7 +126,11 @@ app.post("/logout", (req, res, next) => {
       } else {
         req.session = null;
         res.setHeader("Content-Type", "application/json");
-        res.send(JSON.stringify({ name: null, email: null, userGroup: null }));
+        res.send({
+          name: null,
+          email: null,
+          userGroup: null
+        });
       }
     });
   } else {
@@ -242,36 +254,37 @@ Get all products user is priviledged to see
 */
 app.get("/products", (req, res, next) => {
   db.collection("products")
-    .find(
-      {
-        productName: { $exists: true },
-        $or: [
-          { productOwner: { $eq: req.session.email } },
-          { salesPerson: { $eq: req.session.email } },
-          { creator: { $eq: req.session.email } },
-          { isClassified: { $eq: false } }
-        ]
-      },
-      {
-        // Only the following properties will be returned
-        productName: 1,
-        shortDescription: 1,
-        longDescription: 1,
-        technologies: 1,
-        components: 1,
-        enviromentRequirements: 1,
-        customers: 1,
-        productOwner: 1,
-        salesPerson: 1,
-        lifeCycleStatus: 1,
-        businessType: 1,
-        pricing: 1,
-        isIdea: 1,
-        createdAt: 1,
-        editedAt: 1,
-        creator: 1
-      }
-    )
+    .find({
+      productName: { $exists: true },
+      $or: [
+        { productOwner: { $eq: req.session.email } },
+        { salesPerson: { $eq: req.session.email } },
+        { creator: { $eq: req.session.email } },
+        { isClassified: { $eq: false } }
+      ]
+    })
+    .project({
+      // Only the following properties will be returned
+      // Possible to add table with different data depending on user session
+      productName: 1,
+      shortDescription: 1,
+      longDescription: 1,
+      technologies: 1,
+      components: 1,
+      enviromentRequirements: 1,
+      customers: 1,
+      logo: 1,
+      productOwner: 1,
+      salesPerson: 1,
+      lifeCycleStatus: 1,
+      businessType: 1,
+      pricing: 1,
+      isIdea: 1,
+      createdAt: 1,
+      editedAt: 1,
+      creator: 1
+    })
+
     .toArray((err, result) => {
       if (result) {
         res.setHeader("Content-Type", "application/json");
@@ -279,7 +292,7 @@ app.get("/products", (req, res, next) => {
         res.send();
       } else {
         res.setHeader("Content-Type", "application/json");
-        res.send(JSON.stringify({ error: "Nothing found." }));
+        res.send({ message: "Nothing found", code: "PE1" });
       }
     });
 });
@@ -315,17 +328,16 @@ app.post("/acceptIdea", (req, res, next) => {
   });
 });
 
-app.route("/test").post(
-  [
-    body("components")
-      .isArray()
-      .optional()
-  ],
-  (req, res, next) => {
-    console.log(req.body.components);
-    res.send(req.body);
-  }
-);
+app.route("/users").get((req, res) => {
+  console.log(req.body);
+
+  db.collection("users")
+    .find()
+    .toArray((err, result) => {
+      console.log(result);
+      res.send(result);
+    });
+});
 
 /* 
     Adds a product into db with the following values being required
@@ -350,7 +362,6 @@ app.route("/addProduct").post(
       .optional(),
     body("logo")
       .isString()
-      .escape()
       .optional(),
     body("technologies")
       .isArray()
@@ -358,7 +369,7 @@ app.route("/addProduct").post(
     body("components")
       .isArray()
       .optional(),
-    body("enviromentRequirements")
+    body("environmentRequirements")
       .isArray()
       .optional(),
     body("customers")
@@ -372,9 +383,9 @@ app.route("/addProduct").post(
       .isString()
       .escape()
       .optional(),
-    body("lifeCycleStatus").isInt(),
+    body("lifecycleStatus").isInt(),
     body("businessType")
-      .isInt()
+      .isString()
       .optional(),
     body("pricing")
       .isString()
@@ -388,7 +399,7 @@ app.route("/addProduct").post(
       .optional()
   ],
   (req, res, next) => {
-    console.log(req.session.userGroup);
+    console.log(validationResult(req));
     if (!validationResult(req).isEmpty()) {
       res.setHeader("Content-Type", "application/json");
       res.send({ message: "Invalid form data", code: "APE1" });
@@ -417,7 +428,7 @@ app.route("/addProduct").post(
         customers: req.body.customers,
         productOwner: req.body.productOwner,
         salesPerson: req.body.salesPerson,
-        lifeCycleStatus: req.body.lifeCycleStatus,
+        lifecycleStatus: req.body.lifecycleStatus,
         businessType: req.body.businessType,
         pricing: req.body.pricing,
         isClassified: req.body.isClassified,
