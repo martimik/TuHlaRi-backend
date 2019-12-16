@@ -15,7 +15,7 @@ const app = express();
 
 const { ObjectId } = mongodb;
 
-const CORS_ORIGIN = process.env.OPENSHIFT_NODEJS_CORS || "http://localhost:3000";
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 
 console.log(CORS_ORIGIN);
 
