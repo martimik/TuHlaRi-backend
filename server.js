@@ -15,8 +15,12 @@ const app = express();
 
 const { ObjectId } = mongodb;
 
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+
+console.log(CORS_ORIGIN);
+
 app.use(morgan("combined"));
-app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
+app.use(cors({ credentials: true, origin: CORS_ORIGIN }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(fileUpload({ createParentPath: true }));
@@ -35,12 +39,10 @@ app.use(
 
 const PORT = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080;
 const IP = process.env.IP || process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
-let mongoUrl =
-  process.env.OPENSHIFT_MONGODB_DB_URL ||
-  process.env.MONGO_URL ||
-  "mongodb://127.0.0.1:27017/development";
 
-if (!mongoUrl && process.env.DATABASE_SERVICE_NAME) {
+let mongoUrl;
+
+if (process.env.DATABASE_SERVICE_NAME) {
   const mongoServiceName = process.env.DATABASE_SERVICE_NAME.toUpperCase();
   const mongoHost = process.env[mongoServiceName + "_SERVICE_HOST"];
   const mongoPort = process.env[mongoServiceName + "_SERVICE_PORT"];
@@ -59,17 +61,24 @@ if (!mongoUrl && process.env.DATABASE_SERVICE_NAME) {
     mongoPort +
     "/" +
     mongoDatabase;
+} else {
+    mongoUrl = "mongodb://127.0.0.1:27017/development";
 }
 
 let db;
 
 mongodb.connect(mongoUrl, (err, database) => {
+  console.log(mongoUrl);
   if (err) {
     console.error(err);
     return;
   }
   db = database;
   console.log("Connected to MongoDB at: %s", mongoUrl);
+});
+
+app.get("/", (req, res) => {
+  res.send("Ok");
 });
 
 app.get("/session", (req, res) => {
