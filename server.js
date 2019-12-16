@@ -62,7 +62,7 @@ if (process.env.DATABASE_SERVICE_NAME) {
     "/" +
     mongoDatabase;
 } else {
-    mongoUrl = "mongodb://127.0.0.1:27017/development";
+  mongoUrl = "mongodb://127.0.0.1:27017/development";
 }
 
 let db;
@@ -269,8 +269,8 @@ app.get("/autoFill", (req, res, next) => {
   db.collection("users")
     .find({
       $or: [
-        { name: { $regex: new RegExp(req.body.name) } },
-        { email: { $regex: new RegExp(req.body.name) } }
+        { name: { $regex: new RegExp(req.body.name, "i") } },
+        { email: { $regex: new RegExp(req.body.name, "i") } }
       ]
     })
     .toArray((err, result) => {
