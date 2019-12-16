@@ -39,10 +39,8 @@ app.use(
 
 const PORT = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080;
 const IP = process.env.IP || process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
-let mongoUrl =
-  process.env.OPENSHIFT_MONGODB_DB_URL ||
-  process.env.MONGO_URL ||
-  "mongodb://127.0.0.1:27017/development";
+
+let mongoUrl;
 
 if (process.env.DATABASE_SERVICE_NAME) {
   const mongoServiceName = process.env.DATABASE_SERVICE_NAME.toUpperCase();
@@ -63,6 +61,8 @@ if (process.env.DATABASE_SERVICE_NAME) {
     mongoPort +
     "/" +
     mongoDatabase;
+} else {
+    mongoUrl = "mongodb://127.0.0.1:27017/development";
 }
 
 let db;
@@ -77,16 +77,16 @@ mongodb.connect(mongoUrl, (err, database) => {
   console.log("Connected to MongoDB at: %s", mongoUrl);
 });
 
+app.get("/", (req, res) => {
+  res.send("Ok");
+});
+
 app.get("/session", (req, res) => {
   res.send({
     name: req.session.name,
     email: req.session.email,
     userGroup: req.session.userGroup
   });
-});
-
-app.get("/", (req, res) => {
-      res.send("Ok");
 });
 
 app.get("/events", (req, res) => {
