@@ -44,7 +44,7 @@ let mongoUrl =
   process.env.MONGO_URL ||
   "mongodb://127.0.0.1:27017/development";
 
-if (!mongoUrl && process.env.DATABASE_SERVICE_NAME) {
+if (process.env.DATABASE_SERVICE_NAME) {
   const mongoServiceName = process.env.DATABASE_SERVICE_NAME.toUpperCase();
   const mongoHost = process.env[mongoServiceName + "_SERVICE_HOST"];
   const mongoPort = process.env[mongoServiceName + "_SERVICE_PORT"];
