@@ -15,8 +15,12 @@ const app = express();
 
 const { ObjectId } = mongodb;
 
+const CORS_ORIGIN = process.env.OPENSHIFT_NODEJS_CORS || "http://localhost:3000";
+
+console.log(CORS_ORIGIN);
+
 app.use(morgan("combined"));
-app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
+app.use(cors({ credentials: true, origin: CORS_ORIGIN }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(fileUpload({ createParentPath: true }));
