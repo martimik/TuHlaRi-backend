@@ -68,6 +68,7 @@ if (!mongoUrl && process.env.DATABASE_SERVICE_NAME) {
 let db;
 
 mongodb.connect(mongoUrl, (err, database) => {
+  console.log(mongoUrl);
   if (err) {
     console.error(err);
     return;
