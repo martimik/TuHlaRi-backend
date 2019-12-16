@@ -84,6 +84,10 @@ app.get("/session", (req, res) => {
   });
 });
 
+app.get("/", (req, res) => {
+      res.send("Ok");
+});
+
 app.get("/events", (req, res) => {
   res.header("Access-Control-Allow-Origin", "*");
   db.collection("events").insert({ ip: req.ip, date: Date.now() });
