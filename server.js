@@ -249,6 +249,34 @@ app.post(
       });
   }
 );
+
+/* 
+  How to create indexes
+  https://data-flair.training/blogs/mongodb-text-search/
+  Does not work with mongodb compass
+*/
+
+app.get("/autoFill", (req, res, next) => {
+  db.collection("users")
+    .find({
+      $or: [
+        { name: { $regex: new RegExp(req.body.name) } },
+        { email: { $regex: new RegExp(req.body.name) } }
+      ]
+    })
+    .toArray((err, result) => {
+      console.log("Hakutulos: " + JSON.stringify(result));
+      if (result) {
+        res.setHeader("Content-Type", "application/json");
+        res.write(JSON.stringify(result));
+        res.send();
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.send(JSON.stringify({ error: "Nothing found." }));
+      }
+    });
+});
+
 /* 
 Get all products user is priviledged to see
 */
@@ -261,6 +289,51 @@ app.get("/products", (req, res, next) => {
         { salesPerson: { $eq: req.session.email } },
         { creator: { $eq: req.session.email } },
         { isClassified: { $eq: false } }
+      ]
+    })
+    .project({
+      // Only the following properties will be returned
+      // Possible to add table with different data depending on user session
+      productName: 1,
+      shortDescription: 1,
+      longDescription: 1,
+      technologies: 1,
+      components: 1,
+      enviromentRequirements: 1,
+      customers: 1,
+      logo: 1,
+      productOwner: 1,
+      salesPerson: 1,
+      lifeCycleStatus: 1,
+      businessType: 1,
+      pricing: 1,
+      isIdea: 1,
+      createdAt: 1,
+      editedAt: 1,
+      creator: 1
+    })
+
+    .toArray((err, result) => {
+      if (result) {
+        res.setHeader("Content-Type", "application/json");
+        res.write(JSON.stringify(result));
+        res.send();
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.send({ message: "Nothing found", code: "PE1" });
+      }
+    });
+});
+
+//Maybe remove this if you are big smart
+app.get("/personalProducts", (req, res, next) => {
+  db.collection("products")
+    .find({
+      productName: { $exists: true },
+      $or: [
+        { productOwner: { $eq: req.session.email } },
+        { salesPerson: { $eq: req.session.email } },
+        { creator: { $eq: req.session.email } }
       ]
     })
     .project({
