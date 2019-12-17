@@ -259,13 +259,20 @@ app.post(
   }
 );
 
-/* 
-  How to create indexes
-  https://data-flair.training/blogs/mongodb-text-search/
-  Does not work with mongodb compass
-*/
+/**
+ * Check is the user signed in
+ */
 
-app.get("/autoFill", (req, res, next) => {
+const checkPriviledges = (req, res, next) => {
+  if (!req.session.userGroup || req.session.userGroup >= 3) {
+    res.setHeader("Content-Type", "application/json");
+    res.send({ message: "Insufficient priviledges", code: "IPE1" });
+  } else {
+    next();
+  }
+};
+
+app.get("/users", checkPriviledges, (req, res, next) => {
   db.collection("users")
     .find({
       $or: [
@@ -274,7 +281,6 @@ app.get("/autoFill", (req, res, next) => {
       ]
     })
     .toArray((err, result) => {
-      console.log("Hakutulos: " + JSON.stringify(result));
       if (result) {
         res.setHeader("Content-Type", "application/json");
         res.write(JSON.stringify(result));
@@ -285,6 +291,42 @@ app.get("/autoFill", (req, res, next) => {
       }
     });
 });
+
+app.get("/technologies", (req, res) => {
+  const result = dbTextSearch(req.body.query, "technology", "technologies")
+    .then(result => res.json(result))
+    .catch(err => res.json(err));
+});
+
+app.get("/components", (req, res) => {
+  const result = dbTextSearch(req.body.query, "component", "components")
+    .then(result => res.json(result))
+    .catch(err => res.json(err));
+});
+
+app.get("/environmentRequirements", (req, res) => {
+  const result = dbTextSearch(req.body.query, "requirement", "envRequirements")
+    .then(result => res.json(result))
+    .catch(err => res.json(err));
+});
+
+function dbTextSearch(query, key, document) {
+  return new Promise((resolve, reject) => {
+    db.collection(document)
+      .find({
+        [key]: { $regex: new RegExp(query, "i") }
+      })
+      .toArray((err, res) => {
+        const result = res ? res : { message: "Nothing found", code: "NFE1" };
+
+        if (err) {
+          reject({ message: "Something went wrong", code: "NFE2" });
+        } else {
+          resolve(result);
+        }
+      });
+  });
+}
 
 /* 
 Get all products user is priviledged to see
@@ -410,17 +452,6 @@ app.post("/acceptIdea", (req, res, next) => {
   });
 });
 
-app.route("/users").get((req, res) => {
-  console.log(req.body);
-
-  db.collection("users")
-    .find()
-    .toArray((err, result) => {
-      console.log(result);
-      res.send(result);
-    });
-});
-
 /* 
     Adds a product into db with the following values being required
     - productName
@@ -489,13 +520,16 @@ app.route("/addProduct").post(
       next();
     }
   },
+  checkPriviledges, // Check that the user is logged in
   (req, res, next) => {
-    if (!req.session.userGroup || req.session.userGroup >= 3) {
-      res.setHeader("Content-Type", "application/json");
-      res.send({ message: "Insufficient priviledges", code: "APE2" });
-    } else {
-      next();
-    }
+    addEnvTechComp(req.body.technologies, "technology", "technologies");
+    addEnvTechComp(req.body.components, "component", "components");
+    addEnvTechComp(
+      req.body.environmentRequirements,
+      "requirement",
+      "envRequirements"
+    );
+    next();
   },
   (req, res, next) => {
     db.collection("products").insert(
@@ -523,19 +557,39 @@ app.route("/addProduct").post(
         if (result.nInserted == 0 || err) {
           res.setHeader("Content-Type", "application/json");
           res.send({ message: "Couldn't add product", code: "APE3" });
-          next(err);
         } else {
           res.setHeader("Content-Type", "application/json");
           res.send({
             message: `Successfully created product ${result.id}`,
             code: "APS"
           });
-          res.send();
         }
       }
     );
   }
 );
+/**
+ *
+ * @param {*} arr Array of items that will be compared against the database document.
+ * If database does not contain given item in array, item will be added to document.
+ * @param {*} key Name of the object property. For example, "technology" is the key: {technology: "Java"}
+ * @param {*} document Database document name
+ */
+
+function addEnvTechComp(arr, key, document) {
+  if (!arr) return;
+  arr.forEach(item => {
+    db.collection(document)
+      .find({ [key]: item })
+      .project({ [key]: 1, _id: 0 })
+      .toArray((err, result) => {
+        if (err || result.length === 0) {
+          db.collection(document).insert({ [key]: item });
+          console.log("Inserting", key, item);
+        }
+      });
+  });
+}
 
 app.post("/uploadImage", (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
