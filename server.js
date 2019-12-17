@@ -272,13 +272,17 @@ const checkPriviledges = (req, res, next) => {
   }
 };
 
-app.get("/users", checkPriviledges, (req, res, next) => {
+app.get("/users", (req, res, next) => {
   db.collection("users")
     .find({
+      userGroup: { $ne: req.session.userGroup === "0" ? "-1" : "0" }, // Only admin can see information of other admins
       $or: [
         { name: { $regex: new RegExp(req.body.name, "i") } },
         { email: { $regex: new RegExp(req.body.name, "i") } }
       ]
+    })
+    .project({
+      password: 0 // Password will not be returned
     })
     .toArray((err, result) => {
       if (result) {
