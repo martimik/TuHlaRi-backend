@@ -166,7 +166,7 @@ app.post(
       .isString()
       .escape(),
     body("userGroup")
-      .isLength({ min: 1 })
+      .isLength({ min: 1, max: 1 })
       .isInt()
       .escape()
   ],
@@ -179,14 +179,16 @@ app.post(
   (req, res, next) => {
     if (!validationResult(req).isEmpty()) {
       res.setHeader("Content-Type", "application/json");
-      res.send(JSON.stringify({ error: "Invalid form data." }));
+      res.status(400);
+      res.send({ message: "Failed to create user", code: "NUE1" });
     } else next();
   },
   (req, res, next) => {
     db.collection("users").findOne({ email: req.body.email }, (err, result) => {
       if (result != null) {
         res.setHeader("Content-Type", "application/json");
-        res.send(JSON.stringify({ error: "Email already in use." }));
+        res.status(400);
+        res.send({ message: "Email already in use.", code: "NUE2" });
       } else next();
     });
   },
@@ -217,6 +219,7 @@ app.post(
               userGroup: req.body.userGroup
             })
           );
+          res.status(201);
           res.send();
         }
       }
@@ -339,6 +342,7 @@ app.get("/products", (req, res, next) => {
   db.collection("products")
     .find({
       productName: { $exists: true },
+      deleted: { $eq: false },
       $or: [
         { productOwner: { $eq: req.session.email } },
         { salesPerson: { $eq: req.session.email } },
@@ -365,7 +369,8 @@ app.get("/products", (req, res, next) => {
       isIdea: 1,
       createdAt: 1,
       editedAt: 1,
-      creator: 1
+      creator: 1,
+      deleted: 1
     })
 
     .toArray((err, result) => {
@@ -410,7 +415,49 @@ app.get("/personalProducts", (req, res, next) => {
       isIdea: 1,
       createdAt: 1,
       editedAt: 1,
-      creator: 1
+      creator: 1,
+      deleted: 1
+    })
+
+    .toArray((err, result) => {
+      if (result) {
+        res.setHeader("Content-Type", "application/json");
+        res.write(JSON.stringify(result));
+        res.send();
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.send({ message: "Nothing found", code: "PE1" });
+      }
+    });
+});
+
+app.get("/deletedProducts", (req, res, next) => {
+  db.collection("products")
+    .find({
+      productName: { $exists: true },
+      deleted: { $eq: true }
+    })
+    .project({
+      // Only the following properties will be returned
+      // Possible to add table with different data depending on user session
+      productName: 1,
+      shortDescription: 1,
+      longDescription: 1,
+      technologies: 1,
+      components: 1,
+      enviromentRequirements: 1,
+      customers: 1,
+      logo: 1,
+      productOwner: 1,
+      salesPerson: 1,
+      lifeCycleStatus: 1,
+      businessType: 1,
+      pricing: 1,
+      isIdea: 1,
+      createdAt: 1,
+      editedAt: 1,
+      creator: 1,
+      deleted: 1
     })
 
     .toArray((err, result) => {
@@ -524,7 +571,7 @@ app.route("/addProduct").post(
       next();
     }
   },
-  checkPriviledges, // Check that the user is logged in
+  //checkPriviledges, // Check that the user is logged in
   (req, res, next) => {
     addEnvTechComp(req.body.technologies, "technology", "technologies");
     addEnvTechComp(req.body.components, "component", "components");
@@ -555,7 +602,8 @@ app.route("/addProduct").post(
         isIdea: req.body.isIdea,
         createdAt: Date.now(),
         editedAt: Date.now(),
-        creator: req.session.email
+        creator: req.session.email,
+        deleted: false
       },
       (err, result) => {
         if (result.nInserted == 0 || err) {
@@ -597,7 +645,7 @@ function addEnvTechComp(arr, key, document) {
 
 app.post("/uploadImage", (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
-    return res.status(400).send("No files were uploaded");
+    res.send("placeholder.jpg");
   }
 
   const image = req.files.image;
