@@ -6,7 +6,6 @@ const session = require("express-session");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const { body, validationResult } = require("express-validator/check");
-const sanitizeBody = require("express-validator/filter");
 const sha256 = require("sha256");
 
 const auth = require("basic-auth");
@@ -104,7 +103,7 @@ app.post("/login", (req, res, next) => {
   const passwordHash = sha256(credentials.pass);
 
   db.collection("users").findOne(
-    { name: credentials.name, password: passwordHash },
+    { email: credentials.name, password: passwordHash },
     (err, result) => {
       if (result) {
         console.log(result);
@@ -171,10 +170,9 @@ app.post(
       .escape()
   ],
   (req, res, next) => {
-    // if (req.session.userGroup !== "1") {
-    //  res.end(JSON.stringify({ error: "Need admin privileges." }));
-    //} else
-    next();
+    if (req.session.userGroup !== "1") {
+      res.end(JSON.stringify({ error: "Need admin privileges." }));
+    } else next();
   },
   (req, res, next) => {
     if (!validationResult(req).isEmpty()) {
@@ -275,6 +273,12 @@ const checkPriviledges = (req, res, next) => {
   }
 };
 
+const checkAdminPriviledges = (req, res, next) => {
+  if (req.session.userGroup !== "1") {
+    res.end(JSON.stringify({ error: "Need admin privileges." }));
+  } else next();
+};
+
 app.get("/users", (req, res, next) => {
   db.collection("users")
     .find({
@@ -300,19 +304,19 @@ app.get("/users", (req, res, next) => {
 });
 
 app.get("/technologies", (req, res) => {
-  const result = dbTextSearch(req.body.query, "technology", "technologies")
+  const result = dbTextSearch(req.query.query, "technology", "technologies")
     .then(result => res.json(result))
     .catch(err => res.json(err));
 });
 
 app.get("/components", (req, res) => {
-  const result = dbTextSearch(req.body.query, "component", "components")
+  const result = dbTextSearch(req.query.query, "component", "components")
     .then(result => res.json(result))
     .catch(err => res.json(err));
 });
 
 app.get("/environmentRequirements", (req, res) => {
-  const result = dbTextSearch(req.body.query, "requirement", "envRequirements")
+  const result = dbTextSearch(req.query.query, "requirement", "envRequirements")
     .then(result => res.json(result))
     .catch(err => res.json(err));
 });
@@ -353,12 +357,13 @@ app.get("/products", (req, res, next) => {
     .project({
       // Only the following properties will be returned
       // Possible to add table with different data depending on user session
+      _id: 1,
       productName: 1,
       shortDescription: 1,
       longDescription: 1,
       technologies: 1,
       components: 1,
-      enviromentRequirements: 1,
+      environmentRequirements: 1,
       customers: 1,
       logo: 1,
       productOwner: 1,
@@ -370,7 +375,8 @@ app.get("/products", (req, res, next) => {
       createdAt: 1,
       editedAt: 1,
       creator: 1,
-      deleted: 1
+      deleted: 1,
+      isClassified: 1
     })
 
     .toArray((err, result) => {
@@ -399,12 +405,13 @@ app.get("/personalProducts", (req, res, next) => {
     .project({
       // Only the following properties will be returned
       // Possible to add table with different data depending on user session
+      _id: 1,
       productName: 1,
       shortDescription: 1,
       longDescription: 1,
       technologies: 1,
       components: 1,
-      enviromentRequirements: 1,
+      environmentRequirements: 1,
       customers: 1,
       logo: 1,
       productOwner: 1,
@@ -416,7 +423,8 @@ app.get("/personalProducts", (req, res, next) => {
       createdAt: 1,
       editedAt: 1,
       creator: 1,
-      deleted: 1
+      deleted: 1,
+      isClassified: 1
     })
 
     .toArray((err, result) => {
@@ -440,12 +448,13 @@ app.get("/deletedProducts", (req, res, next) => {
     .project({
       // Only the following properties will be returned
       // Possible to add table with different data depending on user session
+      _id: 1,
       productName: 1,
       shortDescription: 1,
       longDescription: 1,
       technologies: 1,
       components: 1,
-      enviromentRequirements: 1,
+      environmentRequirements: 1,
       customers: 1,
       logo: 1,
       productOwner: 1,
@@ -457,7 +466,8 @@ app.get("/deletedProducts", (req, res, next) => {
       createdAt: 1,
       editedAt: 1,
       creator: 1,
-      deleted: 1
+      deleted: 1,
+      isClassified: 1
     })
 
     .toArray((err, result) => {
@@ -525,7 +535,7 @@ app.route("/addProduct").post(
       .escape()
       .optional(),
     body("logo")
-      .isString()
+      .isArray()
       .optional(),
     body("technologies")
       .isArray()
@@ -571,7 +581,7 @@ app.route("/addProduct").post(
       next();
     }
   },
-  //checkPriviledges, // Check that the user is logged in
+  checkPriviledges, // Check that the user is logged in
   (req, res, next) => {
     addEnvTechComp(req.body.technologies, "technology", "technologies");
     addEnvTechComp(req.body.components, "component", "components");
@@ -591,7 +601,7 @@ app.route("/addProduct").post(
         logo: req.body.logo,
         technologies: req.body.technologies,
         components: req.body.components,
-        enviromentRequirements: req.body.enviromentRequirements,
+        environmentRequirements: req.body.environmentRequirements,
         customers: req.body.customers,
         productOwner: req.body.productOwner,
         salesPerson: req.body.salesPerson,
@@ -665,6 +675,269 @@ app.post("/uploadImage", (req, res) => {
     res.send(fileName);
   });
 });
+
+app.post(
+  "/editProduct",
+  [
+    body("productName")
+      .isLength({ min: 1 })
+      .isString()
+      .optional()
+      .escape(),
+    body("shortDescription")
+      .isLength({ min: 1 })
+      .isString()
+      .optional()
+      .escape(),
+    body("longDescription")
+      .isString()
+      .escape()
+      .optional(),
+    body("logo")
+      .isArray()
+      .optional(),
+    body("technologies")
+      .isArray()
+      .optional(),
+    body("components")
+      .isArray()
+      .optional(),
+    body("environmentRequirements")
+      .isArray()
+      .optional(),
+    body("customers")
+      .isArray()
+      .optional(),
+    body("productOwner") // email
+      .isString()
+      .escape()
+      .optional(),
+    body("salesPerson")
+      .isString()
+      .escape()
+      .optional(),
+    body("lifecycleStatus")
+      .isInt()
+      .optional(),
+    body("businessType")
+      .isString()
+      .optional(),
+    body("pricing")
+      .isString()
+      .escape()
+      .optional(),
+    body("isClassified")
+      .isBoolean()
+      .optional(),
+    body("isIdea")
+      .isBoolean()
+      .optional(),
+    body("deleted")
+      .isBoolean()
+      .optional()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkPriviledges, // Check that the user is logged in
+  (req, res, next) => {
+    addEnvTechComp(req.body.technologies, "technology", "technologies");
+    addEnvTechComp(req.body.components, "component", "components");
+    addEnvTechComp(
+      req.body.environmentRequirements,
+      "requirement",
+      "envRequirements"
+    );
+    next();
+  },
+  (req, res) => {
+    console.log(req.body.id);
+    db.collection("products").update(
+      { _id: mongodb.ObjectId(req.body.id) },
+      {
+        $set: {
+          productName: req.body.productName,
+          shortDescription: req.body.shortDescription,
+          longDescription: req.body.longDescription,
+          logo: req.body.logo,
+          technologies: req.body.technologies,
+          components: req.body.components,
+          environmentRequirements: req.body.environmentRequirements,
+          customers: req.body.customers,
+          productOwner: req.body.productOwner,
+          salesPerson: req.body.salesPerson,
+          lifecycleStatus: req.body.lifecycleStatus,
+          businessType: req.body.businessType,
+          pricing: req.body.pricing,
+          isClassified: req.body.isClassified,
+          isIdea: req.body.isIdea,
+          editedAt: Date.now(),
+          creator: req.session.email,
+          deleted: req.body.deleted
+        }
+      },
+      (err, result) => {
+        if (result.writeError || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update product", code: "EPE3" });
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.send({
+            message: `Successfully updated product ${result.id}`,
+            code: "EPS"
+          });
+        }
+      }
+    );
+  }
+);
+
+app.post(
+  "/editPassword",
+  [
+    body("password")
+      .isLength({ min: 8 })
+      .isString()
+      .escape()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkPriviledges, // Check that the user is logged in
+  (req, res) => {
+    newPassword = sha256(req.body.password);
+    db.collection("users").update(
+      { email: req.session.email },
+      {
+        $set: {
+          password: newPassword
+        }
+      },
+      (err, result) => {
+        if (result.result.nModified == 0 || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update password", code: "UPE4" });
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.send({
+            message: `Password updated succesfully.`,
+            code: "UPS"
+          });
+        }
+      }
+    );
+  }
+);
+
+app.post(
+  "/editUser",
+  [
+    body("name")
+      .isLength({ min: 3 })
+      .isString()
+      .escape(),
+    body("email")
+      .isEmail()
+      .escape(),
+    body("userGroup")
+      .isLength({ min: 1, max: 1 })
+      .isInt()
+      .escape()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkAdminPriviledges, // Check that the user is logged in
+  (req, res) => {
+    db.collection("users").update(
+      { email: req.body.email },
+      {
+        $set: {
+          email: req.body.email,
+          name: req.body.name,
+          userGroup: req.body.userGroup
+        }
+      },
+      (err, result) => {
+        if (result.result.nModified == 0 || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update user", code: "UPE4" });
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.send({
+            message: `User updated succesfully.`,
+            code: "UPS"
+          });
+        }
+      }
+    );
+  }
+);
+
+app.post(
+  "/editPasswordAdmin",
+  [
+    body("email")
+      .isLength({ min: 1 })
+      .isEmail()
+      .escape(),
+    body("password")
+      .isLength({ min: 8 })
+      .isString()
+      .escape()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkAdminPriviledges, // Check that the user is logged in
+  (req, res) => {
+    newPassword = sha256(req.body.password);
+    db.collection("users").update(
+      { email: req.body.email },
+      {
+        $set: {
+          password: newPassword
+        }
+      },
+      (err, result) => {
+        if (result.result.nModified == 0 || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update password", code: "UPE4" });
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.send({
+            message: `Password updated succesfully.`,
+            code: "UPS"
+          });
+        }
+      }
+    );
+  }
+);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
