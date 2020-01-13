@@ -801,6 +801,10 @@ app.post(
 app.post(
   "/editPassword",
   [
+    body("oldPassword")
+      .isLength({ min: 8 })
+      .isString()
+      .escape(),
     body("password")
       .isLength({ min: 8 })
       .isString()
@@ -816,6 +820,23 @@ app.post(
     }
   },
   checkPriviledges, // Check that the user is logged in
+  (req, res, next) => {
+    const passwordHash = sha256(req.body.oldPassword);
+    db.collection("users").findOne(
+      { email: req.session.name, password: passwordHash },
+      (err, result) => {
+        if (result) {
+          console.log(result);
+          next();
+        } else {
+          res.send({
+            message: "Invalid credentials",
+            code: "LIF1"
+          });
+        }
+      }
+    );
+  },
   (req, res) => {
     newPassword = sha256(req.body.password);
     db.collection("users").update(
