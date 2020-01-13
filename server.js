@@ -802,7 +802,7 @@ app.post(
   "/editPassword",
   [
     body("oldPassword")
-      .isLength({ min: 8 })
+      .isLength({ min: 6 })
       .isString()
       .escape(),
     body("password")
@@ -823,14 +823,14 @@ app.post(
   (req, res, next) => {
     const passwordHash = sha256(req.body.oldPassword);
     db.collection("users").findOne(
-      { email: req.session.name, password: passwordHash },
+      { email: req.session.email, password: passwordHash },
       (err, result) => {
         if (result) {
           console.log(result);
           next();
         } else {
           res.send({
-            message: "Invalid credentials",
+            message: "Incorrect old password.",
             code: "LIF1"
           });
         }
@@ -852,6 +852,7 @@ app.post(
           res.send({ message: "Couldn't update password", code: "UPE4" });
         } else {
           res.setHeader("Content-Type", "application/json");
+          res.status(201);
           res.send({
             message: `Password updated succesfully.`,
             code: "UPS"
