@@ -835,20 +835,64 @@ app.post(
 );
 
 app.post(
-    "/editPassword",
-    [
-        body("password")
-            .isLength({ min: 8 })
-            .isString()
-            .escape()
-    ],
-    (req, res, next) => {
-        console.log(validationResult(req));
-        if (!validationResult(req).isEmpty()) {
-            res.setHeader("Content-Type", "application/json");
-            res.send({ message: "Invalid form data", code: "EPE1" });
+  "/editPassword",
+  [
+    body("oldPassword")
+      .isLength({ min: 6 })
+      .isString()
+      .escape(),
+    body("password")
+      .isLength({ min: 8 })
+      .isString()
+      .escape()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkPriviledges, // Check that the user is logged in
+  (req, res, next) => {
+    const passwordHash = sha256(req.body.oldPassword);
+    db.collection("users").findOne(
+      { email: req.session.email, password: passwordHash },
+      (err, result) => {
+        if (result) {
+          console.log(result);
+          next();
         } else {
-            next();
+          res.send({
+            message: "Incorrect old password.",
+            code: "LIF1"
+          });
+        }
+      }
+    );
+  },
+  (req, res) => {
+    newPassword = sha256(req.body.password);
+    db.collection("users").update(
+      { email: req.session.email },
+      {
+        $set: {
+          password: newPassword
+        }
+      },
+      (err, result) => {
+        if (result.result.nModified == 0 || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update password", code: "UPE4" });
+        } else {
+          res.setHeader("Content-Type", "application/json");
+          res.status(201);
+          res.send({
+            message: `Password updated succesfully.`,
+            code: "UPS"
+          });
         }
     },
     checkPriviledges, // Check that the user is logged in
