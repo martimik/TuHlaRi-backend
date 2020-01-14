@@ -920,8 +920,12 @@ app.post(
       .isLength({ min: 3 })
       .isString()
       .escape(),
+    body("reqEmail")
+      .isEmail()
+      .escape(),
     body("email")
       .isEmail()
+      .optional()
       .escape(),
     body("userGroup")
       .isLength({ min: 1, max: 1 })
@@ -940,10 +944,13 @@ app.post(
   checkAdminPriviledges, // Check that the user is logged in
   (req, res) => {
     db.collection("users").update(
-      { email: req.body.email },
+      { email: req.body.reqEmail },
       {
         $set: {
-          email: req.body.email,
+          email:
+            typeof req.body.email !== "undefined"
+              ? req.body.email
+              : req.body.reqEmail,
           name: req.body.name,
           userGroup: req.body.userGroup
         }
