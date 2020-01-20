@@ -29,9 +29,6 @@ app.use(
     session({
         name: "auth",
         secret: "keyboard cat",
-        saveUninitialized: true,
-        rolling: true,
-        resave: true,
         cookie: {
             httpOnly: true,
             maxAge: 1000 * 60 * 30 // 30 minutes
@@ -100,12 +97,6 @@ app.get("/events", (req, res) => {
             res.send(result);
         });
 });
-
-const checkAdminPriviledges = (req, res, next) => {
-    if (req.session.userGroup !== "0") {
-        res.json({ error: "Need admin privileges." });
-    } else next();
-};
 
 app.post("/login", (req, res, next) => {
     const credentials = auth(req);
@@ -178,15 +169,16 @@ app.post(
             .isInt()
             .escape()
     ],
-    checkAdminPriviledges,
+    (req, res, next) => {
+        if (req.session.userGroup !== "0") {
+            res.end(JSON.stringify({ error: "Need admin privileges." }));
+        } else next();
+    },
     (req, res, next) => {
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.status(400);
-            res.send({
-                message: "Failed to create user, invalid data",
-                code: "NUE2"
-            });
+            res.send({ message: "Failed to create user", code: "NUE1" });
         } else next();
     },
     (req, res, next) => {
@@ -198,14 +190,14 @@ app.post(
                     res.status(400);
                     res.send({
                         message: "Email already in use.",
-                        code: "NUE3"
+                        code: "NUE2"
                     });
                 } else next();
             }
         );
     },
     (req, res, next) => {
-        const passwordHash = sha256(req.body.password);
+        let passwordHash = sha256(req.body.password);
 
         db.collection("users").insert(
             {
@@ -218,23 +210,11 @@ app.post(
             (err, result) => {
                 if (result.nInserted == 0 || err) {
                     res.setHeader("Content-Type", "application/json");
-                    res.send({
-                        message: "Failed insertion into database",
-                        code: "NUE4"
-                    });
+                    res.send(JSON.stringify({ error: "Insert failed." }));
                     next(err);
                 } else {
                     res.setHeader("Content-Type", "application/json");
-                    res.write("Adding user");
-                    res.write(
-                        JSON.stringify({
-                            name: req.body.name,
-                            email: req.body.email,
-                            password: req.body.password,
-                            userGroup: req.body.userGroup
-                        })
-                    );
-                    res.status(201);
+                    res.write(JSON.stringify({ message: "New user created." }));
                     res.send();
                 }
             }
@@ -286,6 +266,12 @@ const authenticate = (req, res, next) => {
     } else {
         next();
     }
+};
+
+const checkAdminPriviledges = (req, res, next) => {
+    if (req.session.userGroup !== "0") {
+        res.end(JSON.stringify({ error: "Need admin privileges." }));
+    } else next();
 };
 
 app.get("/users", (req, res, next) => {
@@ -492,7 +478,6 @@ app.get("/personalProducts", (req, res, next) => {
                 res.write(JSON.stringify(result));
                 res.send();
             } else {
-                res.status(404);
                 res.setHeader("Content-Type", "application/json");
                 res.send({ message: "Nothing found", code: "PE1" });
             }
@@ -536,11 +521,44 @@ app.get("/deletedProducts", (req, res, next) => {
                 res.write(JSON.stringify(result));
                 res.send();
             } else {
-                res.status(404);
                 res.setHeader("Content-Type", "application/json");
                 res.send({ message: "Nothing found", code: "PE1" });
             }
         });
+});
+
+app.post("/acceptIdea", (req, res, next) => {
+    const id = req.body.id.length === 24 ? ObjectId(req.body.id) : null;
+
+    if (!id) {
+        res.send({
+            message: "No such product or insufficient priviledges",
+            code: "AIE1"
+        });
+        return;
+    }
+
+    db.collection("products").findOne(id, (err, result) => {
+        if (err || !result) {
+            res.send({
+                message: "No such product or insufficient priviledges",
+                code: "AIE2"
+            });
+            return;
+        }
+        if (result.productOwner === req.session.email) {
+            db.collection("products").update(
+                { _id: id },
+                { $set: { isIdea: true } }
+            );
+            res.send({ message: "Update success", code: "AIS" });
+        } else {
+            res.send({
+                message: "No such product or insufficient priviledges",
+                code: "AIE3"
+            });
+        }
+    });
 });
 
 /* 
@@ -877,7 +895,6 @@ app.post(
                     console.log(result);
                     next();
                 } else {
-                    res.status(400);
                     res.send({
                         message: "Incorrect old password.",
                         code: "LIF1"
@@ -898,10 +915,9 @@ app.post(
             (err, result) => {
                 if (result.result.nModified == 0 || err) {
                     res.setHeader("Content-Type", "application/json");
-                    res.status(400);
                     res.send({
                         message: "Couldn't update password",
-                        code: "UPE1"
+                        code: "UPE4"
                     });
                 } else {
                     res.setHeader("Content-Type", "application/json");
@@ -927,15 +943,14 @@ app.post(
             (err, result) => {
                 if (result.result.nModified == 0 || err) {
                     res.setHeader("Content-Type", "application/json");
-                    res.status(400);
                     res.send({
                         message: "Couldn't update password",
-                        code: "UPE1"
+                        code: "UPE4"
                     });
                 } else {
                     res.setHeader("Content-Type", "application/json");
                     res.send({
-                        message: "Password updated succesfully.",
+                        message: `Password updated succesfully.`,
                         code: "UPS"
                     });
                 }
@@ -945,51 +960,29 @@ app.post(
 );
 
 app.post(
-  "/editUser",
-  [
-    body("name")
-      .isLength({ min: 3 })
-      .isString()
-      .escape(),
-    body("reqEmail")
-      .isEmail()
-      .escape(),
-    body("email")
-      .isEmail()
-      .optional()
-      .escape(),
-    body("userGroup")
-      .isLength({ min: 1, max: 1 })
-      .isInt()
-      .escape()
-  ],
-  (req, res, next) => {
-    console.log(validationResult(req));
-    if (!validationResult(req).isEmpty()) {
-      res.setHeader("Content-Type", "application/json");
-      res.send({ message: "Invalid form data", code: "EPE1" });
-    } else {
-      next();
-    }
-  },
-  checkAdminPriviledges, // Check that the user is logged in
-  (req, res) => {
-    db.collection("users").update(
-      { email: req.body.reqEmail },
-      {
-        $set: {
-          email:
-            typeof req.body.email !== "undefined"
-              ? req.body.email
-              : req.body.reqEmail,
-          name: req.body.name,
-          userGroup: req.body.userGroup
-        }
-      },
-      (err, result) => {
-        if (result.result.nModified == 0 || err) {
-          res.setHeader("Content-Type", "application/json");
-          res.send({ message: "Couldn't update user", code: "UPE4" });
+    "/editUser",
+    [
+        body("name")
+            .isLength({ min: 3 })
+            .isString()
+            .escape(),
+        body("reqEmail")
+            .isEmail()
+            .escape(),
+        body("email")
+            .isEmail()
+            .optional()
+            .escape(),
+        body("userGroup")
+            .isLength({ min: 1, max: 1 })
+            .isInt()
+            .escape()
+    ],
+    (req, res, next) => {
+        console.log(validationResult(req));
+        if (!validationResult(req).isEmpty()) {
+            res.setHeader("Content-Type", "application/json");
+            res.send({ message: "Invalid form data", code: "EPE1" });
         } else {
             next();
         }
@@ -997,10 +990,13 @@ app.post(
     checkAdminPriviledges, // Check that the user is logged in
     (req, res) => {
         db.collection("users").update(
-            { email: req.body.email },
+            { email: req.body.reqEmail },
             {
                 $set: {
-                    email: req.body.email,
+                    email:
+                        typeof req.body.email !== "undefined"
+                            ? req.body.email
+                            : req.body.reqEmail,
                     name: req.body.name,
                     userGroup: req.body.userGroup
                 }
@@ -1008,12 +1004,11 @@ app.post(
             (err, result) => {
                 if (result.result.nModified == 0 || err) {
                     res.setHeader("Content-Type", "application/json");
-                    res.send({ message: "Couldn't update user", code: "UPE2" });
+                    res.send({ message: "Couldn't update user", code: "UPE4" });
                 } else {
                     res.setHeader("Content-Type", "application/json");
-                    res.status(400);
                     res.send({
-                        message: "User updated succesfully.",
+                        message: `User updated succesfully.`,
                         code: "UPS"
                     });
                 }
@@ -1038,7 +1033,6 @@ app.post(
         console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
-            res.status(400);
             res.send({ message: "Invalid form data", code: "EPE1" });
         } else {
             next();
@@ -1059,13 +1053,53 @@ app.post(
                     res.setHeader("Content-Type", "application/json");
                     res.send({
                         message: "Couldn't update password",
-                        code: "UPE1"
+                        code: "UPE4"
                     });
                 } else {
                     res.setHeader("Content-Type", "application/json");
                     res.send({
-                        message: "Password updated succesfully.",
+                        message: `Password updated succesfully.`,
                         code: "UPS"
+                    });
+                }
+            }
+        );
+    }
+);
+
+app.post(
+    "/deleteUser",
+    [
+        body("email")
+            .isString()
+            .escape()
+            .isEmail()
+    ],
+    (req, res, next) => {
+        console.log(validationResult(req));
+        if (!validationResult(req).isEmpty()) {
+            res.setHeader("Content-Type", "application/json");
+            res.send({ message: "Invalid form data", code: "EPE1" });
+        } else {
+            next();
+        }
+    },
+    checkAdminPriviledges, // Check that the user is logged in
+    (req, res) => {
+        db.collection("users").deleteOne(
+            { email: req.body.email },
+            (err, result) => {
+                if (result.result.deletedCount == 0 || err) {
+                    res.setHeader("Content-Type", "application/json");
+                    res.send({
+                        message: "Couldn't delete user",
+                        code: "UDE1"
+                    });
+                } else {
+                    res.setHeader("Content-Type", "application/json");
+                    res.send({
+                        message: `User deleted succesfully.`,
+                        code: "UDS"
                     });
                 }
             }
