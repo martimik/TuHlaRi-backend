@@ -945,6 +945,53 @@ app.post(
 );
 
 app.post(
+<<<<<<< HEAD
+  "/editUser",
+  [
+    body("name")
+      .isLength({ min: 3 })
+      .isString()
+      .escape(),
+    body("reqEmail")
+      .isEmail()
+      .escape(),
+    body("email")
+      .isEmail()
+      .optional()
+      .escape(),
+    body("userGroup")
+      .isLength({ min: 1, max: 1 })
+      .isInt()
+      .escape()
+  ],
+  (req, res, next) => {
+    console.log(validationResult(req));
+    if (!validationResult(req).isEmpty()) {
+      res.setHeader("Content-Type", "application/json");
+      res.send({ message: "Invalid form data", code: "EPE1" });
+    } else {
+      next();
+    }
+  },
+  checkAdminPriviledges, // Check that the user is logged in
+  (req, res) => {
+    db.collection("users").update(
+      { email: req.body.reqEmail },
+      {
+        $set: {
+          email:
+            typeof req.body.email !== "undefined"
+              ? req.body.email
+              : req.body.reqEmail,
+          name: req.body.name,
+          userGroup: req.body.userGroup
+        }
+      },
+      (err, result) => {
+        if (result.result.nModified == 0 || err) {
+          res.setHeader("Content-Type", "application/json");
+          res.send({ message: "Couldn't update user", code: "UPE4" });
+=======
     "/editUser",
     [
         body("name")
@@ -964,6 +1011,7 @@ app.post(
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.send({ message: "Invalid form data", code: "EPE1" });
+>>>>>>> 5dbeb24caaaf7f50933ac36b1bdf43b3156bc79f
         } else {
             next();
         }
