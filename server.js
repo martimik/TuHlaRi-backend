@@ -205,7 +205,7 @@ app.post(
         );
     },
     (req, res, next) => {
-        let passwordHash = sha256(req.body.password);
+        const passwordHash = sha256(req.body.password);
 
         db.collection("users").insert(
             {
@@ -282,7 +282,7 @@ const authenticate = (req, res, next) => {
     if (!req.session.userGroup || req.session.userGroup >= 3) {
         res.setHeader("Content-Type", "application/json");
         res.status(401);
-        res.send({ message: "Insufficient priviledges", code: "IPE1" });
+        res.send({ message: "Unauthorized", code: "UAE1" });
     } else {
         next();
     }
@@ -358,17 +358,42 @@ function dbTextSearch(query, key, document) {
 Get all products user is priviledged to see
 */
 app.get("/products", (req, res, next) => {
-    db.collection("products")
-        .find({
-            productName: { $exists: true },
-            deleted: { $ne: true },
+    const { myProducts, isParticipant, isIdea, isClassified } = JSON.parse(
+        req.query.filters
+    );
+    const search = req.query.search;
+    const query = {
+        isClassified: { $eq: (req.session.userGroup && isClassified) || false },
+        deleted: { $ne: true },
+        isIdea: { $eq: isIdea || false },
+        $and: [{ productName: { $exists: true } }]
+    };
+
+    if (myProducts) {
+        query.creator = { $eq: req.session.email };
+    }
+    if (isParticipant) {
+        query.$and.push({
             $or: [
                 { productOwner: { $eq: req.session.email } },
-                { salesPerson: { $eq: req.session.email } },
-                { creator: { $eq: req.session.email } },
-                { isClassified: { $eq: false } }
+                { salesPerson: { $eq: req.session.email } }
             ]
-        })
+        });
+    }
+    if (search) {
+        query.$and.push({
+            $or: [
+                { productName: { $regex: new RegExp(search, "i") } },
+                { shortDescription: { $regex: new RegExp(search, "i") } },
+                { longDescription: { $regex: new RegExp(search, "i") } }
+            ]
+        });
+    }
+
+    console.log(query);
+
+    db.collection("products")
+        .find(query)
         .project({
             // Only the following properties will be returned
             // Possible to add table with different data depending on user session
@@ -416,7 +441,10 @@ app.get("/product/:id", (req, res, next) => {
                 res.json({ message: "Not found" });
             } else {
                 res.status(200);
-                res.json(result);
+                res.json({
+                    ...result,
+                    isAllowedToEdit: result.creator === req.session.email
+                });
             }
         }
     );
@@ -794,9 +822,7 @@ app.post(
                             pricing: req.body.pricing,
                             isClassified: req.body.isClassified,
                             isIdea: req.body.isIdea,
-                            editedAt: Date.now(),
-                            creator: req.session.email,
-                            deleted: req.body.deleted
+                            editedAt: Date.now()
                         }
                     },
                     (err, result) => {
