@@ -945,7 +945,6 @@ app.post(
 );
 
 app.post(
-<<<<<<< HEAD
   "/editUser",
   [
     body("name")
@@ -991,27 +990,6 @@ app.post(
         if (result.result.nModified == 0 || err) {
           res.setHeader("Content-Type", "application/json");
           res.send({ message: "Couldn't update user", code: "UPE4" });
-=======
-    "/editUser",
-    [
-        body("name")
-            .isLength({ min: 3 })
-            .isString()
-            .escape(),
-        body("email")
-            .isEmail()
-            .escape(),
-        body("userGroup")
-            .isLength({ min: 1, max: 1 })
-            .isInt()
-            .escape()
-    ],
-    (req, res, next) => {
-        console.log(validationResult(req));
-        if (!validationResult(req).isEmpty()) {
-            res.setHeader("Content-Type", "application/json");
-            res.send({ message: "Invalid form data", code: "EPE1" });
->>>>>>> 5dbeb24caaaf7f50933ac36b1bdf43b3156bc79f
         } else {
             next();
         }
