@@ -1,0 +1,98 @@
+# This file is a template, and might need editing before it works on your project. testcomment
+image: ayufan/openshift-cli
+
+stages:
+  - build  # dummy stage to follow the template guidelines
+  - test
+  - deploy  # dummy stage to follow the template guidelines
+  - review
+  - staging
+  - production
+  - cleanup
+
+variables:
+  OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
+  OPENSHIFT_DOMAIN: rahti.csc.fi
+  
+  # Configure this variable in Secure Variables:
+  OPENSHIFT_TOKEN: "$OPENSHIFT_TOKEN"
+
+.deploy: &deploy
+  before_script:
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+    - oc status
+    - oc whoami
+    - echo $CI_PROJECT_NAME
+    - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
+    - cd backend
+    - unset CI
+    - npm install
+    - pwd
+    - oc project tuhlari
+  script:
+    - oc start-build backend --from-dir="." --follow
+  tags:
+    - shell
+
+
+review:
+  <<: *deploy
+  stage: review
+  variables:
+    APP: review-$CI_COMMIT_REF_NAME
+    APP_HOST: $CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$OPENSHIFT_DOMAIN
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$OPENSHIFT_DOMAIN
+    on_stop: stop-review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - shell
+
+
+stop-review:
+  <<: *deploy
+  stage: cleanup
+  script:
+    - oc delete all -l "app=$APP"
+  when: manual
+  variables:
+    APP: review-$CI_COMMIT_REF_NAME
+    GIT_STRATEGY: none
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+
+staging:
+  <<: *deploy
+  stage: staging
+  variables:
+    APP: staging
+    APP_HOST: $CI_PROJECT_NAME-staging.$OPENSHIFT_DOMAIN
+  environment:
+    name: staging
+    url: http://$CI_PROJECT_NAME-staging.$OPENSHIFT_DOMAIN
+  only:
+    - master
+  tags:
+    - shell
+
+production:
+  <<: *deploy
+  stage: production
+  variables:
+    APP: production
+    APP_HOST: $CI_PROJECT_NAME.$OPENSHIFT_DOMAIN
+  when: manual
+  environment:
+    name: production
+    url: http://$CI_PROJECT_NAME.$OPENSHIFT_DOMAIN
+  only:
+    - master
