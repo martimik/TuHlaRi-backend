@@ -149,7 +149,6 @@ app.post("/logout", (req, res, next) => {
 
 // Adds user to bd with validation of data (change later to valid documentation lenght for password etc.)
 app.post(
-<<<<<<< HEAD
   "/newUser",
   [
     body("name")
@@ -196,57 +195,6 @@ app.post(
   },
   (req, res, next) => {
     let passwordHash = sha256(req.body.password);
-=======
-    "/newUser",
-    [
-        body("name")
-            .isLength({ min: 1 })
-            .isString()
-            .escape(),
-        body("email")
-            .isLength({ min: 1 })
-            .isString()
-            .isEmail()
-            .escape(),
-        body("password")
-            .isLength({ min: 1 })
-            .isString()
-            .escape(),
-        body("userGroup")
-            .isLength({ min: 1, max: 1 })
-            .isInt()
-            .escape()
-    ],
-    (req, res, next) => {
-        if (req.session.userGroup !== "0") {
-            res.end(JSON.stringify({ error: "Need admin privileges." }));
-        } else next();
-    },
-    (req, res, next) => {
-        if (!validationResult(req).isEmpty()) {
-            res.setHeader("Content-Type", "application/json");
-            res.status(400);
-            res.send({ message: "Failed to create user", code: "NUE1" });
-        } else next();
-    },
-    (req, res, next) => {
-        db.collection("users").findOne(
-            { email: req.body.email },
-            (err, result) => {
-                if (result != null) {
-                    res.setHeader("Content-Type", "application/json");
-                    res.status(400);
-                    res.send({
-                        message: "Email already in use.",
-                        code: "NUE2"
-                    });
-                } else next();
-            }
-        );
-    },
-    (req, res, next) => {
-        const passwordHash = sha256(req.body.password);
->>>>>>> e74cc2472580554fdb35caead82ffc0cfdcafab1
 
     db.collection("users").insert(
       {
@@ -386,21 +334,26 @@ function dbTextSearch(query, key, document) {
 /* 
 Get all products user is priviledged to see
 */
-<<<<<<< HEAD
-app.get("/products", (req, res, next) => {
+app.get("/products", (req, res) => {
   const { myProducts, isParticipant, isIdea, isClassified } = JSON.parse(
     req.query.filters
   );
   const search = req.query.search;
   const query = {
-    isClassified: { $eq: (req.session.userGroup && isClassified) || false },
     deleted: { $ne: true },
-    isIdea: { $eq: isIdea || false },
     $and: [{ productName: { $exists: true } }]
   };
 
+  if (req.session.userGroup && isClassified) {
+    query.isClassified = { $ne: null };
+  } else {
+    query.isClassified = { $eq: false };
+  }
   if (myProducts) {
     query.creator = { $eq: req.session.email };
+  }
+  if (isIdea) {
+    query.isIdea = { $eq: true };
   }
   if (isParticipant) {
     query.$and.push({
@@ -419,8 +372,6 @@ app.get("/products", (req, res, next) => {
       ]
     });
   }
-
-  console.log(query);
 
   db.collection("products")
     .find(query)
@@ -448,73 +399,6 @@ app.get("/products", (req, res, next) => {
       deleted: 1,
       isClassified: 1
     })
-=======
-app.get("/products", (req, res) => {
-    const { myProducts, isParticipant, isIdea, isClassified } = JSON.parse(
-        req.query.filters
-    );
-    const search = req.query.search;
-    const query = {
-        deleted: { $ne: true },
-        $and: [{ productName: { $exists: true } }]
-    };
-
-    if (req.session.userGroup && isClassified) {
-        query.isClassified = { $ne: null };
-    } else {
-        query.isClassified = { $eq: false };
-    }
-    if (myProducts) {
-        query.creator = { $eq: req.session.email };
-    }
-    if (isIdea) {
-        query.isIdea = { $eq: true };
-    }
-    if (isParticipant) {
-        query.$and.push({
-            $or: [
-                { productOwner: { $eq: req.session.email } },
-                { salesPerson: { $eq: req.session.email } }
-            ]
-        });
-    }
-    if (search) {
-        query.$and.push({
-            $or: [
-                { productName: { $regex: new RegExp(search, "i") } },
-                { shortDescription: { $regex: new RegExp(search, "i") } },
-                { longDescription: { $regex: new RegExp(search, "i") } }
-            ]
-        });
-    }
-
-    db.collection("products")
-        .find(query)
-        .project({
-            // Only the following properties will be returned
-            // Possible to add table with different data depending on user session
-            _id: 1,
-            productName: 1,
-            shortDescription: 1,
-            longDescription: 1,
-            technologies: 1,
-            components: 1,
-            environmentRequirements: 1,
-            customers: 1,
-            logos: 1,
-            productOwner: 1,
-            salesPerson: 1,
-            lifecycleStatus: 1,
-            businessType: 1,
-            pricing: 1,
-            isIdea: 1,
-            createdAt: 1,
-            editedAt: 1,
-            creator: 1,
-            deleted: 1,
-            isClassified: 1
-        })
->>>>>>> e74cc2472580554fdb35caead82ffc0cfdcafab1
 
     .toArray((err, result) => {
       if (result) {
