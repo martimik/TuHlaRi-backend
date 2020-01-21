@@ -197,7 +197,7 @@ app.post(
         );
     },
     (req, res, next) => {
-        let passwordHash = sha256(req.body.password);
+        const passwordHash = sha256(req.body.password);
 
         db.collection("users").insert(
             {
@@ -343,20 +343,26 @@ function dbTextSearch(query, key, document) {
 /* 
 Get all products user is priviledged to see
 */
-app.get("/products", (req, res, next) => {
+app.get("/products", (req, res) => {
     const { myProducts, isParticipant, isIdea, isClassified } = JSON.parse(
         req.query.filters
     );
     const search = req.query.search;
     const query = {
-        isClassified: { $eq: (req.session.userGroup && isClassified) || false },
         deleted: { $ne: true },
-        isIdea: { $eq: isIdea || false },
         $and: [{ productName: { $exists: true } }]
     };
 
+    if (req.session.userGroup && isClassified) {
+        query.isClassified = { $ne: null };
+    } else {
+        query.isClassified = { $eq: false };
+    }
     if (myProducts) {
         query.creator = { $eq: req.session.email };
+    }
+    if (isIdea) {
+        query.isIdea = { $eq: true };
     }
     if (isParticipant) {
         query.$and.push({
@@ -375,8 +381,6 @@ app.get("/products", (req, res, next) => {
             ]
         });
     }
-
-    console.log(query);
 
     db.collection("products")
         .find(query)
