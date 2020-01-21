@@ -30,7 +30,7 @@ variables:
     - pwd
     - oc project tuhlari
   script:
-    - oc start-build nodejs-mongo-persistent --from-dir="." --follow
+    - oc start-build backend --from-dir="." --follow
   tags:
     - shell
 
