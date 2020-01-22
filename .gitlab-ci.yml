@@ -30,7 +30,7 @@ variables:
     - pwd
     - oc project tuhlari
   script:
-    - oc start-build backend --git-repository="https://gitlab.labranet.jamk.fi/digiateam/backend/" --follow
+    - oc start-build backend --git-repository="https://gitlab.labranet.jamk.fi/digiateam/backend.git" --follow
   tags:
     - shell
 
