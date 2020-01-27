@@ -29,6 +29,9 @@ app.use(
     session({
         name: "auth",
         secret: "keyboard cat",
+        saveUninitialized: false,
+        resave: true,
+        rolling: true,
         cookie: {
             httpOnly: true,
             maxAge: 1000 * 60 * 30 // 30 minutes
@@ -709,6 +712,13 @@ app.route("/addProduct").post(
                 createdAt: Date.now(),
                 editedAt: Date.now(),
                 creator: req.session.email,
+                statusChanges: [
+                    {
+                        statusCode: req.body.lifecycleStatus,
+                        startedAt: Date.now(),
+                        endedAt: null
+                    }
+                ],
                 deleted: false
             },
             (err, result) => {
@@ -853,21 +863,36 @@ app.post(
         next();
     },
     (req, res) => {
-        console.log(req.body.id);
         db.collection("products").findOne(
             { _id: ObjectId(req.body.id) },
             (err, result) => {
                 if (err) {
                     console.log(err);
                 }
-                console.log(result);
-
-                const { logos } = result;
+                const { logos, lifecycleStatus } = result;
                 const duplicate = logos.find(logo => logo === req.body.logo);
                 const newLogos = [
                     ...logos.filter(logo => logo !== duplicate),
                     req.body.logo
                 ];
+
+                const statusChanges = result.statusChanges || [];
+                console.log(statusChanges);
+                if (lifecycleStatus !== req.body.lifecycleStatus) {
+                    const timestamp = Date.now();
+
+                    statusChanges.length
+                        ? (statusChanges[
+                              statusChanges.length - 1
+                          ].endedAt = timestamp)
+                        : false;
+
+                    statusChanges.push({
+                        statusCode: req.body.lifecycleStatus,
+                        startedAt: timestamp,
+                        endedAt: null
+                    });
+                }
 
                 db.collection("products").update(
                     { _id: ObjectId(req.body.id) },
@@ -889,7 +914,8 @@ app.post(
                             pricing: req.body.pricing,
                             isClassified: req.body.isClassified,
                             isIdea: req.body.isIdea,
-                            editedAt: Date.now()
+                            editedAt: Date.now(),
+                            statusChanges
                         }
                     },
                     (err, result) => {
