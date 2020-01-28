@@ -31,3 +31,7 @@ variables:
     - oc start-build backend --from-repo="." --follow --wait
   tags:
     - shell
+    
+job:
+    script:
+    - echo ":)"
