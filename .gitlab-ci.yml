@@ -2,6 +2,7 @@
 image: ayufan/openshift-cli
 
 stages:
+    - oc login
     - testing
     - build
 
@@ -19,6 +20,14 @@ variables:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
   tags:
     - shell
+    
+login:
+  stage: oc login
+  script:
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+    - oc status
+    - oc whoami
+    - echo $CI_PROJECT_NAME
 
 eslint:
   stage: testing
