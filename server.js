@@ -1229,6 +1229,49 @@ app.post(
     }
 );
 
+app.get("/cleanup", (req, res) => {
+    db.collection("products")
+        .find({ deleted: { $ne: true } })
+        .project({ technologies: 1, components: 1, environmentRequirements: 1 })
+        .toArray(async (err, results) => {
+            if (err || results.length === 0) {
+                console.log("rip");
+            } else {
+                let technologies = [];
+                let components = [];
+                let environmentRequirements = [];
+                results.forEach(result => {
+                    technologies = [...technologies, ...result.technologies];
+                    components = [...components, ...result.components];
+                    environmentRequirements = [
+                        ...environmentRequirements,
+                        ...result.environmentRequirements
+                    ];
+                });
+                technologies = [...new Set(technologies)];
+                components = [...new Set(components)];
+                environmentRequirements = [...new Set(environmentRequirements)];
+
+                await db.collection("technologies").remove();
+                await db.collection("components").remove();
+                await db.collection("environmentRequirements").remove();
+
+                technologies.forEach(item => {
+                    db.collection("technologies").insert({ technology: item });
+                });
+                components.forEach(item => {
+                    db.collection("components").insert({ component: item });
+                });
+                environmentRequirements.forEach(item => {
+                    db.collection("environmentRequirements").insert({
+                        environmentRequirement: item
+                    });
+                });
+            }
+        });
+    res.send("moi");
+});
+
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send({ error: err });
