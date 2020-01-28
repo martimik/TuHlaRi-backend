@@ -30,6 +30,7 @@ eslint:
 
 buildProductionToOpenshift:
  stage: build
+ when: manual
  script:
     - unset CI
     - npm ci
