@@ -35,13 +35,6 @@ GitClone:
 
 Eslint:
   stage: testing
-  artifacts:
-    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-    when: on_failure
-    paths:
-    - .
-    expire_in: 2 days
-    reports:
   allow_failure: true
   script:
     - npm install eslint --save-dev
