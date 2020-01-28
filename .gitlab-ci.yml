@@ -19,7 +19,7 @@ variables:
   tags:
     - shell
     
-gitpull:
+Gitpull:
   stage: preparation
   script:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
@@ -33,7 +33,7 @@ gitpull:
 #    - oc whoami
 #    - echo $CI_PROJECT_NAME
 
-eslint:
+Eslint:
   stage: testing
   allow_failure: true
   script:
@@ -42,7 +42,7 @@ eslint:
     - ./node_modules/.bin/eslint server.js
 
 
-buildProductionToOpenshift_Manual:
+BuildProductionToOpenshift_Manual:
  stage: build
  when: manual
  script:
