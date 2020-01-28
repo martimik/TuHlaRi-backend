@@ -1,13 +1,9 @@
+#This is the backend CI/CD Pipeline for pushing to the project to CSC Openshift platform
 image: ayufan/openshift-cli
 
 stages:
-  - build  # dummy stage to follow the template guidelines
-  - test
-  - deploy  # dummy stage to follow the template guidelines
-  - review
-  - staging
-  - production
-  - cleanup
+    - testing
+    - build
 
 variables:
   OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
@@ -18,20 +14,38 @@ variables:
 
 .deploy: &deploy
   before_script:
+    - cd
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+    - oc status
+    - oc whoami
+    - echo $CI_PROJECT_NAME
+    - git clone https://gitlab.labranet.jamk.fi/digiateam/front-end.git
+  tags:
+    - shell
+
+.deploy: &deploy
+  before_script:
+    - cd
     - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
     - oc status
     - oc whoami
     - echo $CI_PROJECT_NAME
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
-    - cd backend
-    - unset CI
-    - npm ci
-  script:
-    - oc project tuhlari
-    - oc start-build backend --from-repo="." --follow --wait
   tags:
     - shell
-    
-job:
-    script:
-    - echo ":)"
+
+eslint:
+  stage: testing
+  allow_failure: true
+  script:
+    - npm install eslint --save-dev
+    - npm install eslint-plugin-react@latest --save-dev
+    - ./node_modules/.bin/eslint src/**
+
+buildProductionToOpenshift:
+ stage: build
+ script:
+    - unset CI
+    - npm ci
+    - oc project tuhlari
+    - oc start-build backend --from-repo="." --follow --wait
