@@ -15,9 +15,6 @@ variables:
 .deploy: &deploy
   before_script:
     - cd
-    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
-    - oc status
-    - oc whoami
     - echo $CI_PROJECT_NAME
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
   tags:
@@ -36,5 +33,8 @@ buildProductionToOpenshift:
  script:
     - unset CI
     - npm ci
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+    - oc status
+    - oc whoami
     - oc project tuhlari
     - oc start-build backend --from-repo="." --follow --wait
