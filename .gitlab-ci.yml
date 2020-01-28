@@ -39,7 +39,7 @@ Eslint:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     when: on_failure
     expire_in: 2 days
-    reports: true
+    reports:
     paths:
     - binaries/
   allow_failure: true
