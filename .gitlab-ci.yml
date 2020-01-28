@@ -24,13 +24,14 @@ gitpull:
   script:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
 
-login:
-  stage: preparation
-  script:
-    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
-    - oc status
-    - oc whoami
-    - echo $CI_PROJECT_NAME
+#Remove comments once csc starts working again
+#login:
+#  stage: preparation
+#  script:
+#    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+#    - oc status
+#    - oc whoami
+#    - echo $CI_PROJECT_NAME
 
 eslint:
   stage: testing
@@ -40,7 +41,8 @@ eslint:
     - npm install eslint-plugin-react@latest --save-dev
     - ./node_modules/.bin/eslint server.js
 
-buildProductionToOpenshift:
+
+buildProductionToOpenshift_Manual:
  stage: build
  when: manual
  script:
@@ -50,4 +52,4 @@ buildProductionToOpenshift:
     - oc status
     - oc whoami
     - oc project tuhlari
-    - oc start-build backend --from-repo="." --follow --wait
+#    - oc start-build backend --from-repo="." --follow --wait
