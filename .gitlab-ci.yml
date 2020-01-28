@@ -19,17 +19,6 @@ variables:
     - oc status
     - oc whoami
     - echo $CI_PROJECT_NAME
-    - git clone https://gitlab.labranet.jamk.fi/digiateam/front-end.git
-  tags:
-    - shell
-
-.deploy: &deploy
-  before_script:
-    - cd
-    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
-    - oc status
-    - oc whoami
-    - echo $CI_PROJECT_NAME
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
   tags:
     - shell
@@ -40,7 +29,7 @@ eslint:
   script:
     - npm install eslint --save-dev
     - npm install eslint-plugin-react@latest --save-dev
-    - ./node_modules/.bin/eslint src/**
+    - ./node_modules/.bin/eslint server.js
 
 buildProductionToOpenshift:
  stage: build
