@@ -1,4 +1,3 @@
-# This file is a template, and might need editing before it works on your project. testcomment
 image: ayufan/openshift-cli
 
 stages:
@@ -26,73 +25,9 @@ variables:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
     - cd backend
     - unset CI
-    - npm install
-    - pwd
-    - oc project tuhlari
+    - npm ci
   script:
+    - oc project tuhlari
     - oc start-build backend --from-repo="." --follow --wait
   tags:
     - shell
-
-
-review:
-  <<: *deploy
-  stage: review
-  variables:
-    APP: review-$CI_COMMIT_REF_NAME
-    APP_HOST: $CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$OPENSHIFT_DOMAIN
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    url: http://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$OPENSHIFT_DOMAIN
-    on_stop: stop-review
-  only:
-    - branches
-  except:
-    - master
-  tags:
-    - shell
-
-
-stop-review:
-  <<: *deploy
-  stage: cleanup
-  script:
-    - oc delete all -l "app=$APP"
-  when: manual
-  variables:
-    APP: review-$CI_COMMIT_REF_NAME
-    GIT_STRATEGY: none
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    action: stop
-  only:
-    - branches
-  except:
-    - master
-
-staging:
-  <<: *deploy
-  stage: staging
-  variables:
-    APP: staging
-    APP_HOST: $CI_PROJECT_NAME-staging.$OPENSHIFT_DOMAIN
-  environment:
-    name: staging
-    url: http://$CI_PROJECT_NAME-staging.$OPENSHIFT_DOMAIN
-  only:
-    - master
-  tags:
-    - shell
-
-production:
-  <<: *deploy
-  stage: production
-  variables:
-    APP: production
-    APP_HOST: $CI_PROJECT_NAME.$OPENSHIFT_DOMAIN
-  when: manual
-  environment:
-    name: production
-    url: http://$CI_PROJECT_NAME.$OPENSHIFT_DOMAIN
-  only:
-    - master
