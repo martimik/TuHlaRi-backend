@@ -11,7 +11,7 @@ variables:
   OPENSHIFT_DOMAIN: rahti.csc.fi
   
   # Configure this variable in Secure Variables:
-  OPENSHIFT_TOKEN: "$OPENSHIFT_TOKEN"
+  # OPENSHIFT_TOKEN: "$OPENSHIFT_TOKEN"
 
 .deploy: &deploy
   before_script:
@@ -24,15 +24,16 @@ GitClone:
   script:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
 
-#Remove comments once csc starts working again
-#login:
-#  stage: preparation
-#  script:
-#    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
-#    - oc status
-#    - oc whoami
-#    - echo $CI_PROJECT_NAME
 
+login:
+  stage: preparation
+  script:
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+    - oc status
+    - oc whoami
+    - echo $CI_PROJECT_NAME
+
+#Eslint rules specified in .eslintrc.json and should be found in repo
 Eslint:
   stage: testing
   allow_failure: true
