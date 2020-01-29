@@ -13,7 +13,7 @@ variables:
   DS_DEFAULT_ANALYZERS: "retire.js, gemnasium"
   DS_MAJOR_VERSION: 2
   DS_DISABLE_DIND: "false
-  
+
 # Before script is executed before every job
 .deploy: &deploy
   before_script:
