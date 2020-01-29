@@ -7,6 +7,9 @@ stages:
     - build
     - testing
 
+
+
+#Make sure file contains only 1 variables part
 variables:
   OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
   OPENSHIFT_DOMAIN: rahti.csc.fi
