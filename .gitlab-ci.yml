@@ -17,12 +17,6 @@ variables:
   tags:
     - shell
     
-GitClone:
-  stage: preparation
-  script:
-    - cd /home/gitlab-runner/builds/s2mU8de_/0/digiateam/backend/
-    #- git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
-
 # $OPENSHIFT_TOKEN specified in proj settings CI/CD Variables, make sure it's protected
 login:
   stage: preparation
