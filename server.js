@@ -995,8 +995,6 @@ app.post(
             .isString()
             .escape()
     ],
-    newPassword = ""
-    ,
     (req, res, next) => {
         console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
@@ -1018,14 +1016,14 @@ app.post(
                 } else {
                     res.send({
                         message: "Incorrect old password.",
-                        code: "LIF1"
+                        code: "LIE1"
                     });
                 }
             }
         );
     },
     (req, res) => {
-        newPassword = sha256(req.body.password);
+        const newPassword = sha256(req.body.password);
         db.collection("users").update(
             { email: req.session.email },
             {
@@ -1053,7 +1051,7 @@ app.post(
     },
     authenticate, // Check that the user is logged in
     (req, res) => {
-        newPassword = sha256(req.body.password);
+        const newPassword = sha256(req.body.password);
         db.collection("users").update(
             { email: req.session.email },
             {
@@ -1150,7 +1148,6 @@ app.post(
             .isString()
             .escape()
     ],
-    newPassword = "",
     (req, res, next) => {
         console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
@@ -1162,7 +1159,7 @@ app.post(
     },
     checkAdminPriviledges, // Check that the user is logged in
     (req, res) => {
-        newPassword = sha256(req.body.password);
+        const newPassword = sha256(req.body.password);
         db.collection("users").update(
             { email: req.body.email },
             {
