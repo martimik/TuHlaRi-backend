@@ -99,7 +99,7 @@ app.get("/events", (req, res) => {
         });
 });
 
-app.post("/login", (req, res, next) => {
+app.post("/login", (req, res) => {
     const credentials = auth(req);
     const passwordHash = sha256(credentials.pass);
 
@@ -240,7 +240,7 @@ app.post(
             res.send(JSON.stringify({ error: "Invalid form data." }));
         } else next();
     },
-    (req, res, next) => {
+    (req, res) => {
         //Searches db with the searchword with indexed values and makes it an array for JSON preparation
         db.collection("products")
             .find({ $text: { $search: req.body.searchWord } })
@@ -275,7 +275,7 @@ const checkAdminPriviledges = (req, res, next) => {
     } else next();
 };
 
-app.get("/users", (req, res, next) => {
+app.get("/users", (req, res) => {
     db.collection("users")
         .find({
             userGroup: { $ne: req.session.userGroup === "0" ? "-1" : "0" }, // Only admin can see information of other admins
@@ -300,19 +300,19 @@ app.get("/users", (req, res, next) => {
 });
 
 app.get("/technologies", (req, res) => {
-    const result = dbTextSearch(req.query.query, "technology", "technologies")
+    dbTextSearch(req.query.query, "technology", "technologies")
         .then(result => res.json(result))
         .catch(err => res.json(err));
 });
 
 app.get("/components", (req, res) => {
-    const result = dbTextSearch(req.query.query, "component", "components")
+    dbTextSearch(req.query.query, "component", "components")
         .then(result => res.json(result))
         .catch(err => res.json(err));
 });
 
 app.get("/environmentRequirements", (req, res) => {
-    const result = dbTextSearch(
+    dbTextSearch(
         req.query.query,
         "requirement",
         "envRequirements"
@@ -352,7 +352,6 @@ app.get("/products", (req, res) => {
         lifecycleStatus
     } = JSON.parse(req.query.filters);
     const search = req.query.search;
-    const page = parseInt(req.query.page);
     const query = {
         deleted: { $ne: true },
         $and: [{ productName: { $exists: true } }]
@@ -486,7 +485,7 @@ app.delete("/product/:id", authenticate, (req, res) => {
 });
 
 //Maybe remove this if you are big smart
-app.get("/personalProducts", (req, res, next) => {
+app.get("/personalProducts", (req, res) => {
     db.collection("products")
         .find({
             productName: { $exists: true },
@@ -533,7 +532,7 @@ app.get("/personalProducts", (req, res, next) => {
         });
 });
 
-app.get("/deletedProducts", (req, res, next) => {
+app.get("/deletedProducts", (req, res) => {
     db.collection("products")
         .find({
             productName: { $exists: true },
@@ -576,7 +575,7 @@ app.get("/deletedProducts", (req, res, next) => {
         });
 });
 
-app.post("/acceptIdea", (req, res, next) => {
+app.post("/acceptIdea", (req, res) => {
     const id = req.body.id.length === 24 ? ObjectId(req.body.id) : null;
 
     if (!id) {
@@ -689,7 +688,7 @@ app.route("/addProduct").post(
         );
         next();
     },
-    (req, res, next) => {
+    (req, res) => {
         db.collection("products").insert(
             {
                 productName: req.body.productName,
@@ -996,6 +995,8 @@ app.post(
             .isString()
             .escape()
     ],
+    newPassword = ""
+    ,
     (req, res, next) => {
         console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
@@ -1149,6 +1150,7 @@ app.post(
             .isString()
             .escape()
     ],
+    newPassword = "",
     (req, res, next) => {
         console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
@@ -1274,7 +1276,7 @@ app.post("/cleanup", checkAdminPriviledges, (req, res) => {
         });
 });
 
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
     console.error(err.stack);
     res.status(500).send({ error: err });
 });
