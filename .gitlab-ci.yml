@@ -24,7 +24,7 @@ GitClone:
   script:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
 
-
+#$OPENSHIFT_TOKEN specified in proj settings CI/CD Variables
 login:
   stage: preparation
   script:
