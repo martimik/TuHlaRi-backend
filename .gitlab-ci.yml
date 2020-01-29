@@ -47,7 +47,6 @@ BuildProductionToOpenshift_Manual:
  script:
     - unset CI
     - npm ci
-    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
     - oc status
     - oc whoami
     - oc project tuhlari
