@@ -1,4 +1,4 @@
-#This is the backend CI/CD Pipeline for pushing to the project to CSC Openshift platform
+# This is the backend CI/CD Pipeline for pushing to the project to CSC Openshift platform
 image: ayufan/openshift-cli
 
 stages:
@@ -10,9 +10,7 @@ variables:
   OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
   OPENSHIFT_DOMAIN: rahti.csc.fi
   
-  # Configure this variable in Secure Variables:
-  # OPENSHIFT_TOKEN: "$OPENSHIFT_TOKEN"
-
+# Before script is executed before every job
 .deploy: &deploy
   before_script:
     - cd
@@ -24,7 +22,7 @@ GitClone:
   script:
     - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
 
-#$OPENSHIFT_TOKEN specified in proj settings CI/CD Variables
+# $OPENSHIFT_TOKEN specified in proj settings CI/CD Variables, make sure it's protected
 login:
   stage: preparation
   script:
@@ -33,7 +31,7 @@ login:
     - oc whoami
     - echo $CI_PROJECT_NAME
 
-#Eslint rules specified in .eslintrc.json and should be found in repo
+# Eslint rules specified in .eslintrc.json and should be found in repo
 Eslint:
   stage: testing
   allow_failure: true
