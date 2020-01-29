@@ -5,6 +5,7 @@ stages:
     - preparation
     - code testing
     - build
+    - testing
 
 variables:
   OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
