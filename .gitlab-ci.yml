@@ -3,7 +3,7 @@ image: ayufan/openshift-cli
 
 stages:
     - preparation
-    - testing
+    - code testing
     - build
 
 variables:
@@ -58,7 +58,7 @@ RobotTests:
     - echo "Add robot tests here?"
     
 code_quality:
-  stage: testing
+  stage: code testing
   image: docker:stable
   allow_failure: false
   services:
@@ -101,7 +101,7 @@ code_quality:
 # How to set: https://docs.gitlab.com/ee/ci/yaml/#variables
 
 dependency_scanning:
-  stage: testing
+  stage: code testing
   image: docker:stable
   variables:
     DOCKER_DRIVER: overlay2
