@@ -7,9 +7,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { body, validationResult } = require("express-validator/check");
 const sha256 = require("sha256");
-
 const auth = require("basic-auth");
-
 const app = express();
 
 const { ObjectId } = mongodb;
@@ -273,7 +271,7 @@ const authenticate = (req, res, next) => {
 
 const checkAdminPriviledges = (req, res, next) => {
     if (req.session.userGroup !== "0") {
-        res.end(JSON.stringify({ error: "Need admin privileges." }));
+        res.json({ error: "Need admin privileges." });
     } else next();
 };
 
@@ -1228,6 +1226,53 @@ app.post(
         );
     }
 );
+
+app.post("/cleanup", checkAdminPriviledges, (req, res) => {
+    db.collection("products")
+        .find({ deleted: { $ne: true } })
+        .project({ technologies: 1, components: 1, environmentRequirements: 1 })
+        .toArray(async (err, results) => {
+            if (err || results.length === 0) {
+                res.code(500);
+                res.send();
+            } else {
+                let technologies = [];
+                let components = [];
+                let environmentRequirements = [];
+
+                results.forEach(result => {
+                    technologies = [...technologies, ...result.technologies];
+                    components = [...components, ...result.components];
+                    environmentRequirements = [
+                        ...environmentRequirements,
+                        ...result.environmentRequirements
+                    ];
+                });
+
+                technologies = [...new Set(technologies)];
+                components = [...new Set(components)];
+                environmentRequirements = [...new Set(environmentRequirements)];
+
+                await db.collection("technologies").remove();
+                await db.collection("components").remove();
+                await db.collection("environmentRequirements").remove();
+
+                technologies.forEach(item => {
+                    db.collection("technologies").insert({ technology: item });
+                });
+                components.forEach(item => {
+                    db.collection("components").insert({ component: item });
+                });
+                environmentRequirements.forEach(item => {
+                    db.collection("environmentRequirements").insert({
+                        environmentRequirement: item
+                    });
+                });
+                res.code(200);
+                res.send();
+            }
+        });
+});
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
