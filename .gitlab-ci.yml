@@ -50,8 +50,6 @@ BuildTestToOpenshift:
     - unset CI
     - npm ci
     - ls
-    - mkdir images
-    - ls
     - oc status
     - oc whoami
     - oc project tuhlari
