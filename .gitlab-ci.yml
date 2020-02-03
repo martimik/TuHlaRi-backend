@@ -1,30 +1,31 @@
-#This is the backend CI/CD Pipeline for pushing to the project to CSC Openshift platform
+# This is the backend CI/CD Pipeline for pushing to the project to CSC Openshift platform
 image: ayufan/openshift-cli
 
 stages:
     - preparation
-    - testing
+    - code testing
     - build
+    - testing
 
+
+
+#Make sure file contains only 1 variables part
 variables:
   OPENSHIFT_SERVER: https://rahti.csc.fi:8443/
   OPENSHIFT_DOMAIN: rahti.csc.fi
+  DS_ANALYZER_IMAGE_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
+  DS_DEFAULT_ANALYZERS: "retire.js, gemnasium"
+  DS_MAJOR_VERSION: 2
+  DS_DISABLE_DIND: "false"
   
-  # Configure this variable in Secure Variables:
-  # OPENSHIFT_TOKEN: "$OPENSHIFT_TOKEN"
-
+# Before script is executed before every job
 .deploy: &deploy
   before_script:
     - cd
   tags:
     - shell
-    
-GitClone:
-  stage: preparation
-  script:
-    - git clone https://gitlab.labranet.jamk.fi/digiateam/backend.git
 
-
+# $OPENSHIFT_TOKEN specified in proj settings CI/CD Variables, make sure it's protected
 login:
   stage: preparation
   script:
@@ -33,15 +34,25 @@ login:
     - oc whoami
     - echo $CI_PROJECT_NAME
 
-#Eslint rules specified in .eslintrc.json and should be found in repo
+
+# Eslint rules specified in .eslintrc.json and should be found in repo
 Eslint:
-  stage: testing
+  stage: code testing
   allow_failure: true
   script:
     - npm install eslint --save-dev
     - npm install eslint-plugin-react@latest --save-dev
     - ./node_modules/.bin/eslint server.js
 
+BuildTestToOpenshift:
+ stage: build
+ script:
+    - unset CI
+    - npm ci
+    - oc status
+    - oc whoami
+    - oc project tuhlari
+    - oc start-build back-test --from-repo="." --follow --wait
 
 BuildProductionToOpenshift_Manual:
  stage: build
@@ -49,8 +60,146 @@ BuildProductionToOpenshift_Manual:
  script:
     - unset CI
     - npm ci
-    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
     - oc status
     - oc whoami
     - oc project tuhlari
     - oc start-build backend --from-repo="." --follow --wait
+
+RobotTests:
+ stage: testing
+ script:
+    - echo "Add robot tests here?"
+    
+code_quality:
+  stage: code testing
+  image: docker:stable
+  allow_failure: false
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    CODE_QUALITY_IMAGE: "registry.gitlab.com/gitlab-org/security-products/codequality:0.85.6"
+  script:
+    - |
+      if ! docker info &>/dev/null; then
+        if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+          export DOCKER_HOST='tcp://localhost:2375'
+        fi
+      fi
+    - docker pull registry.gitlab.com/gitlab-org/security-products/codequality:0.85.6
+    - docker run 
+        --dns 8.8.8.8
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "$CODE_QUALITY_IMAGE" /code
+  artifacts:
+    reports:
+      codequality: $CI_PROJECT_DIR/gl-code-quality-report.json
+    expire_in: 1 week
+  dependencies: []
+  only:
+    refs:
+      - branches
+      - tags
+  except:
+    variables:
+      - $CODE_QUALITY_DISABLED
+  tags:
+    - shell
+
+# Read more about this feature here: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/
+# List of the variables: https://gitlab.com/gitlab-org/security-products/dependency-scanning#settings
+# How to set: https://docs.gitlab.com/ee/ci/yaml/#variables
+
+dependency_scanning:
+  stage: code testing
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export DS_VERSION=${SP_VERSION:-$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')}
+    - |
+      if ! docker info &>/dev/null; then
+        if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+          export DOCKER_HOST='tcp://localhost:2375'
+        fi
+      fi
+    - | # this is required to avoid undesirable reset of Docker image ENV variables being set on build stage
+      function propagate_env_vars() {
+        CURRENT_ENV=$(printenv)
+
+        for VAR_NAME; do
+          echo $CURRENT_ENV | grep "${VAR_NAME}=" > /dev/null && echo "--env $VAR_NAME "
+        done
+      }
+    - |
+      docker run \
+        $(propagate_env_vars \
+          DS_ANALYZER_IMAGES \
+          DS_ANALYZER_IMAGE_PREFIX \
+          DS_ANALYZER_IMAGE_TAG \
+          DS_DEFAULT_ANALYZERS \
+          DS_EXCLUDED_PATHS \
+          DS_DOCKER_CLIENT_NEGOTIATION_TIMEOUT \
+          DS_PULL_ANALYZER_IMAGE_TIMEOUT \
+          DS_RUN_ANALYZER_TIMEOUT \
+          DS_PYTHON_VERSION \
+          DS_PIP_VERSION \
+          DS_PIP_DEPENDENCY_PATH \
+          PIP_INDEX_URL \
+          PIP_EXTRA_INDEX_URL \
+          PIP_REQUIREMENTS_FILE \
+          MAVEN_CLI_OPTS \
+          BUNDLER_AUDIT_UPDATE_DISABLED \
+        ) \
+        --volume "$PWD:/code" \
+        --volume /var/run/docker.sock:/var/run/docker.sock \
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$DS_VERSION" /code
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+  dependencies: []
+  only:
+    refs:
+      - branches
+    variables:
+      - $GITLAB_FEATURES =~ /\bdependency_scanning\b/
+  except:
+    variables:
+      - $DEPENDENCY_SCANNING_DISABLED
+      - $DS_DISABLE_DIND == 'true'
+
+.ds-analyzer:
+  extends: dependency_scanning
+  services: []
+  except:
+    variables:
+      - $DS_DISABLE_DIND == 'false'
+  script:
+    - /analyzer run
+
+gemnasium-dependency_scanning:
+  extends: .ds-analyzer
+  image:
+    name: "$DS_ANALYZER_IMAGE_PREFIX/gemnasium:$DS_MAJOR_VERSION"
+  only:
+    variables:
+      - $GITLAB_FEATURES =~ /\bdependency_scanning\b/ &&
+        $DS_DEFAULT_ANALYZERS =~ /gemnasium/ &&
+        $CI_PROJECT_REPOSITORY_LANGUAGES =~ /ruby|javascript|php/
+
+retire-js-dependency_scanning:
+  extends: .ds-analyzer
+  image:
+    name: "$DS_ANALYZER_IMAGE_PREFIX/retire.js:$DS_MAJOR_VERSION"
+  only:
+    variables:
+      - $GITLAB_FEATURES =~ /\bdependency_scanning\b/ &&
+        $DS_DEFAULT_ANALYZERS =~ /retire.js/ &&
+        $CI_PROJECT_REPOSITORY_LANGUAGES =~ /javascript/
