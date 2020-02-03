@@ -44,6 +44,15 @@ Eslint:
     - npm install eslint-plugin-react@latest --save-dev
     - ./node_modules/.bin/eslint server.js
 
+BuildTestToOpenshift:
+ stage: build
+ script:
+    - unset CI
+    - npm ci
+    - oc status
+    - oc whoami
+    - oc project tuhlari
+    - oc start-build back-test --from-repo="." --follow --wait
 
 BuildProductionToOpenshift_Manual:
  stage: build
