@@ -1227,14 +1227,13 @@ app.post(
     }
 );
 
-app.post("/cleanup", checkAdminPriviledges, (req, res) => {
+const runCleanup = () => {
     db.collection("products")
         .find({ deleted: { $ne: true } })
         .project({ technologies: 1, components: 1, environmentRequirements: 1 })
         .toArray(async (err, results) => {
             if (err || results.length === 0) {
-                res.code(500);
-                res.send();
+                console.log(err.message);
             } else {
                 let technologies = [];
                 let components = [];
@@ -1268,11 +1267,10 @@ app.post("/cleanup", checkAdminPriviledges, (req, res) => {
                         environmentRequirement: item
                     });
                 });
-                res.code(200);
-                res.send();
+                console.log("Cleanup done");
             }
         });
-});
+};
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -1281,5 +1279,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, IP);
 console.log("Server running on http://%s:%s", IP, PORT);
+
+setInterval(runCleanup, 1000 * 60 * 60 * 1); // Every hour
 
 module.exports = app;
