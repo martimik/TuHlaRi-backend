@@ -107,7 +107,6 @@ app.post("/login", (req, res) => {
         { email: credentials.name, password: passwordHash },
         (err, result) => {
             if (result) {
-                console.log(result);
                 req.session.name = result.name;
                 req.session.email = result.email;
                 req.session.userGroup = result.userGroup;
@@ -129,7 +128,7 @@ app.post("/login", (req, res) => {
 
 app.post("/logout", (req, res, next) => {
     if (req.session) {
-        req.session.destroy(function(err) {
+        req.session.destroy(err => {
             if (err) {
                 next(err);
             } else {
@@ -197,8 +196,8 @@ app.post(
             }
         );
     },
-    (req, res, next) => {
-        let passwordHash = sha256(req.body.password);
+    (req, res) => {
+        const passwordHash = sha256(req.body.password);
 
         db.collection("users").insert(
             {
@@ -212,7 +211,6 @@ app.post(
                 if (result.nInserted == 0 || err) {
                     res.setHeader("Content-Type", "application/json");
                     res.send(JSON.stringify({ error: "Insert failed." }));
-                    next(err);
                 } else {
                     res.setHeader("Content-Type", "application/json");
                     res.write(JSON.stringify({ message: "New user created." }));
@@ -384,30 +382,6 @@ app.get("/products", (req, res) => {
 
     db.collection("products")
         .find(query)
-        .project({
-            // Only the following properties will be returned
-            // Possible to add table with different data depending on user session
-            _id: 1,
-            productName: 1,
-            shortDescription: 1,
-            longDescription: 1,
-            technologies: 1,
-            components: 1,
-            environmentRequirements: 1,
-            customers: 1,
-            logos: 1,
-            productOwner: 1,
-            salesPerson: 1,
-            lifecycleStatus: 1,
-            businessType: 1,
-            pricing: 1,
-            isIdea: 1,
-            createdAt: 1,
-            editedAt: 1,
-            creator: 1,
-            deleted: 1,
-            isClassified: 1
-        })
         .sort({ editedAt: -1 })
         .toArray((err, result) => {
             if (result) {
@@ -491,31 +465,6 @@ app.get("/personalProducts", (req, res) => {
                 { creator: { $eq: req.session.email } }
             ]
         })
-        .project({
-            // Only the following properties will be returned
-            // Possible to add table with different data depending on user session
-            _id: 1,
-            productName: 1,
-            shortDescription: 1,
-            longDescription: 1,
-            technologies: 1,
-            components: 1,
-            environmentRequirements: 1,
-            customers: 1,
-            logos: 1,
-            productOwner: 1,
-            salesPerson: 1,
-            lifecycleStatus: 1,
-            businessType: 1,
-            pricing: 1,
-            isIdea: 1,
-            createdAt: 1,
-            editedAt: 1,
-            creator: 1,
-            deleted: 1,
-            isClassified: 1
-        })
-
         .toArray((err, result) => {
             if (result) {
                 res.setHeader("Content-Type", "application/json");
@@ -534,31 +483,6 @@ app.get("/deletedProducts", (req, res) => {
             productName: { $exists: true },
             deleted: { $eq: true }
         })
-        .project({
-            // Only the following properties will be returned
-            // Possible to add table with different data depending on user session
-            _id: 1,
-            productName: 1,
-            shortDescription: 1,
-            longDescription: 1,
-            technologies: 1,
-            components: 1,
-            environmentRequirements: 1,
-            customers: 1,
-            logos: 1,
-            productOwner: 1,
-            salesPerson: 1,
-            lifecycleStatus: 1,
-            businessType: 1,
-            pricing: 1,
-            isIdea: 1,
-            createdAt: 1,
-            editedAt: 1,
-            creator: 1,
-            deleted: 1,
-            isClassified: 1
-        })
-
         .toArray((err, result) => {
             if (result) {
                 res.setHeader("Content-Type", "application/json");
@@ -662,10 +586,12 @@ app.route("/addProduct").post(
             .optional(),
         body("isIdea")
             .isBoolean()
+            .optional(),
+        body("participants")
+            .isArray()
             .optional()
     ],
     (req, res, next) => {
-        console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.send({ message: "Invalid form data", code: "APE1" });
@@ -702,6 +628,7 @@ app.route("/addProduct").post(
                 pricing: req.body.pricing,
                 isClassified: req.body.isClassified,
                 isIdea: req.body.isIdea,
+                participants: req.body.participants,
                 createdAt: Date.now(),
                 editedAt: Date.now(),
                 creator: req.session.email,
@@ -833,10 +760,12 @@ app.post(
             .optional(),
         body("deleted")
             .isBoolean()
+            .optional(),
+        body("participants")
+            .isArray()
             .optional()
     ],
     (req, res, next) => {
-        console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.send({ message: "Invalid form data", code: "EPE1" });
@@ -862,6 +791,12 @@ app.post(
                 if (err) {
                     console.log(err);
                 }
+
+                if (result.creator !== req.session.email) {
+                    res.code(401).json({ message: "Unauthorized" });
+                    return;
+                }
+
                 const { logos, lifecycleStatus } = result;
                 const duplicate = logos.find(logo => logo === req.body.logo);
                 const newLogos = [
@@ -870,7 +805,6 @@ app.post(
                 ];
 
                 const statusChanges = result.statusChanges || [];
-                console.log(statusChanges);
                 if (lifecycleStatus !== req.body.lifecycleStatus) {
                     const timestamp = Date.now();
 
@@ -907,6 +841,7 @@ app.post(
                             pricing: req.body.pricing,
                             isClassified: req.body.isClassified,
                             isIdea: req.body.isIdea,
+                            participants: req.body.participants,
                             editedAt: Date.now(),
                             statusChanges
                         }
@@ -941,7 +876,6 @@ app.post(
             .escape()
     ],
     (req, res, next) => {
-        console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.send({ message: "Invalid form data", code: "EPE1" });
@@ -951,7 +885,6 @@ app.post(
     },
     authenticate, // Check that the user is logged in
     (req, res) => {
-        console.log(req.body._id);
         db.collection("products").update(
             { _id: ObjectId(req.body._id) },
             {
@@ -992,7 +925,6 @@ app.post(
             .escape()
     ],
     (req, res, next) => {
-        console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.status(400);
@@ -1146,7 +1078,6 @@ app.post(
             .escape()
     ],
     (req, res, next) => {
-        console.log(validationResult(req));
         if (!validationResult(req).isEmpty()) {
             res.setHeader("Content-Type", "application/json");
             res.send({ message: "Invalid form data", code: "EPE1" });
