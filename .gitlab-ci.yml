@@ -49,6 +49,7 @@ BuildTestToOpenshift:
  script:
     - unset CI
     - npm ci
+    - mkdir images
     - oc status
     - oc whoami
     - oc project tuhlari
@@ -60,6 +61,7 @@ BuildProductionToOpenshift_Manual:
  script:
     - unset CI
     - npm ci
+    - mkdir images
     - oc status
     - oc whoami
     - oc project tuhlari
