@@ -49,7 +49,6 @@ BuildTestToOpenshift:
  script:
     - unset CI
     - npm ci
-    - ls
     - oc status
     - oc whoami
     - oc project tuhlari
@@ -75,7 +74,7 @@ RobotTests:
 code_quality:
   stage: code testing
   image: docker:stable
-  allow_failure: false
+  allow_failure: true
   services:
     - docker:stable-dind
   variables:
