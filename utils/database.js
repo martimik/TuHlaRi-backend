@@ -28,6 +28,7 @@ if (process.env.DATABASE_SERVICE_NAME) {
 let db;
 
 function connect() {
+    console.log("Connecting to:", mongoUrl);
     mongodb.connect(mongoUrl, (err, database) => {
         if (err) {
             console.error(err);
