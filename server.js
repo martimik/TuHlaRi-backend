@@ -137,6 +137,13 @@ app.post(
     ],
     validateForm,
     checkAdminPriviledges,
+    (req, res, next) => {
+        if (req.body.email === "admin@admin.com") {
+            res.status(401).json({ message: "Cannot edit" });
+        } else {
+            next();
+        }
+    },
     updateUser
 );
 
@@ -150,6 +157,13 @@ app.post(
     ],
     validateForm,
     checkAdminPriviledges,
+    (req, res, next) => {
+        if (req.body.email === "admin@admin.com") {
+            res.status(401).json({ message: "Cannot delete" });
+        } else {
+            next();
+        }
+    },
     deleteUserByEmail
 );
 

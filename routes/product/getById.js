@@ -14,11 +14,16 @@ module.exports = (req, res, next) => {
                 res.status(404);
                 res.json({ message: "Not found" });
             } else {
+                const { creator, productOwner, salesPerson } = result;
+                const { email } = req.session;
+
+                const isAllowedToEdit =
+                    creator === email ||
+                    productOwner === email ||
+                    salesPerson === email;
+
                 res.status(200);
-                res.json({
-                    ...result,
-                    isAllowedToEdit: result.creator === req.session.email
-                });
+                res.json({ ...result, isAllowedToEdit });
             }
         });
 };

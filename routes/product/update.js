@@ -7,8 +7,14 @@ module.exports = (req, res) => {
             if (err) {
                 console.log(err);
             }
+            const { email } = req.session;
+            const { creator, productOwner, salesPerson } = result;
+            const isAllowedToEdit =
+                creator === email ||
+                productOwner === email ||
+                salesPerson === email;
 
-            if (result.creator !== req.session.email) {
+            if (!isAllowedToEdit) {
                 res.code(401).json({ message: "Unauthorized" });
                 return;
             }
