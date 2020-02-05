@@ -16,12 +16,12 @@ module.exports = (req, res) => {
     if (req.session.userGroup && isClassified) {
         query.isClassified = { $ne: null };
         query.$and.push({
-            isClassified: { $ne: null },
             $or: [
                 { creator: { $eq: req.session.email } },
                 { productOwner: { $eq: req.session.email } },
                 { salesPerson: { $eq: req.session.email } },
-                { participants: req.session.email }
+                { participants: req.session.email },
+                { isClassified: { $eq: false } }
             ]
         });
     } else {
