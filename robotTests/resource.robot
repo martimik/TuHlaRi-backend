@@ -26,7 +26,7 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
-    Open Browser            ${URL}    ${BROWSER}
+    Selenium2Library.Open Browser            ${URL}    ${BROWSER}
     Title Should Be         Tuhlari
 
 Teardown
