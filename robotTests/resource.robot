@@ -26,7 +26,7 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
-    Set Selenium Speed      0.5seconds
+    Set Selenium Speed      5seconds
     Open Browser            ${URL}    ${BROWSER}
     Delete All Cookies
     Title Should Be         Tuhlari
@@ -42,32 +42,32 @@ Open Product Statistics
     Click Link              xpath:("//span[.='Statistics']")
 
 Click Product View
-    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/products
+    Click Link              https://front-end-tuhlari.rahtiapp.fi/#/products
 
 Click Create-Product View
-    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-product
+    Click Link              https://front-end-tuhlari.rahtiapp.fi/#/create-product
 
 Click Users View
-    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/users
+    Click Link              https://front-end-tuhlari.rahtiapp.fi/#/users
 
 Click Create-User View
-    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-user
+    Click Link              https://front-end-tuhlari.rahtiapp.fi/#/create-user
 
 Click Deleted-Products View
-    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/deleted-products
+    Click Link              https://front-end-tuhlari.rahtiapp.fi/#/deleted-products
 
 Enter Product Info
 
 
 Login
-    Click Element           id:toggle-login-button
-    Input Text              id:auth-email-textfield         ${USER_EMAIL}
-    Input Password          id:auth-password-textfield      ${USER_PASSWORD}
-    Click Element           id:login-button
-    Page Should Contain     id:logout-button
+    Click Element           toggle-login-button
+    Input Text              auth-email-textfield            ${USER_EMAIL}
+    Input Password          auth-password-textfield      ${USER_PASSWORD}
+    Click Element           login-button
+    Page Should Contain     logout-button
 
 Logout
-    Click-Element           id:logout-button
-    Page Should Contain     id:toggle-login-button
+    Click-Element           logout-button
+    Page Should Contain     toggle-login-button
 
 
