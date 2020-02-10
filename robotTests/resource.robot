@@ -26,9 +26,10 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
+    Set
     Open Browser            ${URL}    ${BROWSER}
     Title Should Be         Tuhlari
-
+    Set Selenium Speed      0.5seconds
 Teardown
     Close All Browsers
 
