@@ -26,9 +26,9 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
-    Delete All Cookies
     Set Selenium Speed      0.5seconds
     Open Browser            ${URL}    ${BROWSER}
+    Delete All Cookies
     Title Should Be         Tuhlari
     
 Teardown
