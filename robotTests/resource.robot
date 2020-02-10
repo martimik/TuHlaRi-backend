@@ -26,11 +26,11 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
-    Selenium2Library.Open Browser            ${URL}    ${BROWSER}
-    SeleniumLibrary.Title Should Be         Tuhlari
+    Open Browser            ${URL}    ${BROWSER}
+    Title Should Be         Tuhlari
 
 Teardown
-    SeleniumLibrary.Close All Browsers
+    Close All Browsers
 
 
 Click Product
@@ -38,35 +38,35 @@ Click Product
     #https://stackoverflow.com/questions/27798339/how-to-click-on-a-text-in-selenium-webdriver-2-x
 
 Open Product Statistics
-    SeleniumLibrary.Click Link              xpath:("//span[.='Statistics']")
+    Click Link              xpath:("//span[.='Statistics']")
 
 Click Product View
-    SeleniumLibrary.Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/products
+    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/products
 
 Click Create-Product View
-    SeleniumLibrary.Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-product
+    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-product
 
 Click Users View
-    SeleniumLibrary.Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/users
+    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/users
 
 Click Create-User View
-    SeleniumLibrary.Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-user
+    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/create-user
 
 Click Deleted-Products View
-    SeleniumLibrary.Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/deleted-products
+    Click Link              link:https://front-end-tuhlari.rahtiapp.fi/#/deleted-products
 
 Enter Product Info
 
 
 Login
-    SeleniumLibrary.Click Element           id:toggle-login-button
-    SeleniumLibrary.Input Text              id:auth-email-textfield         ${USER_EMAIL}
-    SeleniumLibrary.Input Password          id:auth-password-textfield      ${USER_PASSWORD}
-    SeleniumLibrary.Click Element           id:login-button
-    SeleniumLibrary.Page Should Contain     id:logout-button
+    Click Element           id:toggle-login-button
+    Input Text              id:auth-email-textfield         ${USER_EMAIL}
+    Input Password          id:auth-password-textfield      ${USER_PASSWORD}
+    Click Element           id:login-button
+    Page Should Contain     id:logout-button
 
 Logout
-    SeleniumLibrary.Click-Element           id:logout-button
-    SeleniumLibrary.Page Should Contain     id:toggle-login-button
+    Click-Element           id:logout-button
+    Page Should Contain     id:toggle-login-button
 
 

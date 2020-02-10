@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation       Tests for team ReLambs project Tuhlari
 
-Library             Selenium2Library
+Library             SeleniumLibrary
 Resource            resource.robot
 Suite Setup         Open Browser To Webpage
 Suite Teardown      Teardown
@@ -25,12 +25,12 @@ Open product Statistics
 #################################
 Open Create Prdocut View Not Logged In
     Click Create-Product View
-    SeleniumLibrary.Page Should Not Contain     id:product-name-textfield
+    Page Should Not Contain     id:product-name-textfield
 
 Open Create Product View
     Login
     Click Create-Product View
-    SeleniumLibrary.Page Should Contain         id:product-name-textfield
+    Page Should Contain         id:product-name-textfield
 
 Create Product without Logo
     Login
@@ -62,46 +62,46 @@ Change Product Logo
 #################################
 Open Create User View Not Logged In
     Click Create-User View
-    SeleniumLibrary.Page Should Not Contain     id:name-textfield
+    Page Should Not Contain     id:name-textfield
 
 Open Create User View
     Login
     Click Create-User View
-    SeleniumLibrary.Page Should Contain         id:name-textfield
+    Page Should Contain         id:name-textfield
 
 Create User Admin
     Login
     Click Create-User View
-    SeleniumLibrary.Input Text                  id:name-textfield                   Name
-    SeleniumLibrary.Input Text                  id:email-textfield                  email
-    SeleniumLibrary.Input Password              id:password-textfield               password
-    SeleniumLibrary.Input Password              id:password-confirm-textfield       password
-    SeleniumLibrary.Select From List By Index   id:user-group-select                2
-    SeleniumLibrary.Click Element               id:create-user-button
+    Input Text                  id:name-textfield                   Name
+    Input Text                  id:email-textfield                  email
+    Input Password              id:password-textfield               password
+    Input Password              id:password-confirm-textfield       password
+    Select From List By Index   id:user-group-select                2
+    Click Element               id:create-user-button
 
     #Page Should contain something fun :)
 
 Create User Salesperson
     Login
     Click Create-User View
-    SeleniumLibrary.Input Text                  id:name-textfield                   Name
-    SeleniumLibrary.Input Text                  id:email-textfield                  email
-    SeleniumLibrary.Input Password              id:password-textfield               password
-    SeleniumLibrary.Input Password              id:password-confirm-textfield       password
-    SeleniumLibrary.Select From List By Index   id:user-group-select                0
-    SeleniumLibrary.Click Element               id:create-user-button
+    Input Text                  id:name-textfield                   Name
+    Input Text                  id:email-textfield                  email
+    Input Password              id:password-textfield               password
+    Input Password              id:password-confirm-textfield       password
+    Select From List By Index   id:user-group-select                0
+    Click Element               id:create-user-button
 
     #Page Should contain something fun :)
 
 Create User Product Owner
     Login
     Click Create-User View
-    SeleniumLibrary.Input Text                  id:name-textfield                   Name
-    SeleniumLibrary.Input Text                  id:email-textfield                  email
-    SeleniumLibrary.Input Password              id:password-textfield               password
-    SeleniumLibrary.Input Password              id:password-confirm-textfield       password
-    SeleniumLibrary.Select From List By Index   id:user-group-select                1
-    SeleniumLibrary.Click Element               id:create-user-button 
+    Input Text                  id:name-textfield                   Name
+    Input Text                  id:email-textfield                  email
+    Input Password              id:password-textfield               password
+    Input Password              id:password-confirm-textfield       password
+    Select From List By Index   id:user-group-select                1
+    Click Element               id:create-user-button 
 
     #Page Should contain something fun :)
 
