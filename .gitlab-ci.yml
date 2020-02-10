@@ -46,6 +46,7 @@ Eslint:
 
 BuildTestToOpenshift:
  stage: build
+ when: manual #remove this line for automatic testing environment
  script:
     - unset CI
     - npm ci
@@ -68,8 +69,10 @@ BuildProductionToOpenshift_Manual:
 
 RobotTests:
  stage: testing
+ when: manual
  script:
-    - echo "Add robot tests here?"
+    - ls
+    - robot robotTests/test1.robot
     
 code_quality:
   stage: code testing
