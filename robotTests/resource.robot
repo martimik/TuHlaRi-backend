@@ -26,6 +26,7 @@ ${PRODUCT_LOGO}                 ?
 
 *** Keywords ***
 Open Browser To Webpage
+    Delete All Cookies
     Set Selenium Speed      0.5seconds
     Open Browser            ${URL}    ${BROWSER}
     Title Should Be         Tuhlari
