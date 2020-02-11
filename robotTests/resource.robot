@@ -89,7 +89,7 @@ Enter Product Info
     Press Keys              participant-textfield              ENTER
 
 Add Image
-    Choose File             contained-button-file              ${CURDIR}\\index.jpg
+    Choose File             contained-button-file              ${CURDIR}/index.jpg
 
 Login
 	Open Browser To Webpage
