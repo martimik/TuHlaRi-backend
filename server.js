@@ -69,7 +69,7 @@ app.get("/session", (req, res) => {
 
 app.post("/login", login);
 app.post("/logout", logout);
-app.get("/users", getUsers);
+app.get("/users", checkAdminPriviledges, getUsers);
 
 // Adds user to bd with validation of data (change later to valid documentation lenght for password etc.)
 app.post(
@@ -93,8 +93,8 @@ app.post(
             .isInt()
             .escape()
     ],
-    checkAdminPriviledges,
     validateForm,
+    checkAdminPriviledges,
     createUser
 );
 
