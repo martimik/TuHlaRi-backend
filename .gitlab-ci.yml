@@ -4,8 +4,9 @@ image: ayufan/openshift-cli
 stages:
     - preparation
     - code testing
-    - build
+    - buildTest
     - testing
+    - buildProd
 
 
 
@@ -34,7 +35,6 @@ login:
     - oc whoami
     - echo $CI_PROJECT_NAME
 
-
 # Eslint rules specified in .eslintrc.json and should be found in repo
 Eslint:
   stage: code testing
@@ -43,9 +43,16 @@ Eslint:
     - npm install eslint --save-dev
     - npm install eslint-plugin-react@latest --save-dev
     - ./node_modules/.bin/eslint server.js
+    
+NpmTest:
+    stage: code testing
+    allow_failure: true
+    script:
+        - npm install
+        - npm test
 
 BuildTestToOpenshift:
- stage: build
+ stage: buildTest
  script:
     - unset CI
     - npm ci
@@ -55,7 +62,7 @@ BuildTestToOpenshift:
     - oc start-build back-test --from-repo="." --follow --wait
 
 BuildProductionToOpenshift_Manual:
- stage: build
+ stage: buildProd
  when: manual
  script:
     - unset CI
@@ -68,7 +75,6 @@ BuildProductionToOpenshift_Manual:
 
 RobotTests:
  stage: testing
- when: manual
  script:
     - ls
     - robot robotTests/test1.robot
