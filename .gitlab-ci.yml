@@ -46,7 +46,6 @@ Eslint:
 
 BuildTestToOpenshift:
  stage: build
- when: manual #remove this line for automatic testing environment
  script:
     - unset CI
     - npm ci
