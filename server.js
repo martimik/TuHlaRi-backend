@@ -136,14 +136,7 @@ app.post(
             .escape()
     ],
     validateForm,
-    ,
-    (req, res, next) => {
-        if (req.body.email === "admin@admin.com") {
-            res.status(401).json({ message: "Cannot edit" });
-        } else {
-            next();
-        }
-    },
+    checkAdminPriviledges,
     updateUser
 );
 
