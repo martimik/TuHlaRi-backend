@@ -17,7 +17,10 @@ module.exports = (req, res) => {
                 res.status(404);
                 res.json({ message: "Not found" });
             } else {
-                if (isOwner(req, result.creator)) {
+                if (
+                    isOwner(req, result.creator) ||
+                    req.session.userGroup === "0"
+                ) {
                     db.get()
                         .collection("products")
                         .update(

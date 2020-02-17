@@ -20,7 +20,8 @@ module.exports = (req, res, next) => {
                 const isAllowedToEdit =
                     creator === email ||
                     productOwner === email ||
-                    salesPerson === email;
+                    salesPerson === email ||
+                    req.session.userGroup === "0";
 
                 res.status(200);
                 res.json({ ...result, isAllowedToEdit });
