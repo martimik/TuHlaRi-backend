@@ -18,16 +18,6 @@ describe("Basic routes tests", function() {
             });
     });
 
-    it("GET to /session should return 200", function(done) {
-        chai.request(reqServer)
-            .get("/session")
-            .auth("admin@admin.com", "admin")
-            .end(function(err, res) {
-                res.should.have.status(200);
-                done();
-            });
-    });
-
     it("Get users without logging in", function(done) {
         chai.request(reqServer)
             .get("/users")
