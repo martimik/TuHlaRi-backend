@@ -102,11 +102,10 @@ app.post(
     "/editPassword",
     [
         body("oldPassword")
-            .isLength({ min: 6 })
             .isString()
             .escape(),
         body("password")
-            .isLength({ min: 8 })
+            .isLength({ min: 6 })
             .isString()
             .escape()
     ],
