@@ -42,7 +42,7 @@
     "homepage": "http://github.com/sclorg/nodejs-ex",
     "devDependencies": {
         "chai": "^3.5.0",
-        "mocha": "^2.5.3",
+        "mocha": "^10.1.0",
         "request": "^2.88.0",
         "supertest": "^4.0.2",
         "supertest-session": "^4.0.0"
